@@ -1,0 +1,24 @@
+{
+  "name": "@flint/contracts",
+  "version": "0.1.0",
+  "description": "Smart contracts for FLINT platform",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat run scripts/deploy.ts --network coston2",
+    "deploy:mainnet": "hardhat run scripts/deploy.ts --network flare",
+    "verify": "hardhat verify"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/hardhat": "^9.1.0",
+    "hardhat": "^2.19.4",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.1",
+    "ethers": "^6.9.0"
+  }
+}
+
