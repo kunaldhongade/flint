@@ -1,0 +1,50 @@
+name: FLINT TEE Build
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'packages/ai/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'packages/ai/**'
+
+jobs:
+  build-tee:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GitHub Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and Push TEE Image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./packages/ai
+        file: ./packages/ai/Dockerfile.tee
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: |
+          ghcr.io/${{ github.repository }}/flint-tee:latest
+          ghcr.io/${{ github.repository }}/flint-tee:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Output Measurement (Simulation)
+      # In a real pipeline, we would extract the MRENCLAVE from the built image
+      # verifying reproducible builds.
+      run: echo "Build Complete. MRENCLAVE extraction pending secure signing step."
