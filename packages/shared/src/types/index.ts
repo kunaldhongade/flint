@@ -43,6 +43,8 @@ export interface AIDecision {
   dataSources: string[];
   alternatives: string[];
   onChainHash?: string;
+  modelCid?: string;
+  xaiTrace?: any;
 }
 
 export interface RiskScore {

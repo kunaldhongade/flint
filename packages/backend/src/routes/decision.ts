@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express';
-import { AIDecision, YieldOpportunity, PortfolioPosition } from '@flint/shared';
+import { AIDecision, PortfolioPosition, YieldOpportunity } from '@flint/shared';
+import { Request, Response, Router } from 'express';
 import { aiService } from '../services/ai';
+import { blockchainService } from '../services/blockchain';
 
 export const decisionRouter = Router();
 
@@ -60,15 +61,33 @@ decisionRouter.post('/reallocate', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/decision
+ * Get decision history from blockchain
+ */
+decisionRouter.get('/', async (req: Request, res: Response) => {
+  try {
+    const decisions = await blockchainService.getDecisionsFromChain();
+    res.json(decisions);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch decisions', message: (error as Error).message });
+  }
+});
+
+/**
  * GET /api/decision/:decisionId
- * Get a specific decision
+ * Get a specific decision from blockchain
  */
 decisionRouter.get('/:decisionId', async (req: Request, res: Response) => {
   try {
     const { decisionId } = req.params;
+    const decisions = await blockchainService.getDecisionsFromChain();
+    const decision = decisions.find(d => d.id === decisionId);
     
-    // TODO: Fetch from database/blockchain
-    res.status(501).json({ error: 'Not implemented' });
+    if (!decision) {
+      return res.status(404).json({ error: 'Decision not found' });
+    }
+    
+    res.json(decision);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch decision', message: (error as Error).message });
   }

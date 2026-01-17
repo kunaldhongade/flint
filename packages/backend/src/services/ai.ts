@@ -1,9 +1,10 @@
-import { AIDecision, YieldOpportunity, PortfolioPosition, RiskScore } from '@flint/shared';
-import { riskService } from './risk';
-import { ftsoService } from './ftso';
-import { fdcService } from './fdc';
-import { logger } from '../utils/logger';
+import { AIDecision, PortfolioPosition, RiskScore, YieldOpportunity } from '@flint/shared';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../utils/logger';
+import { blockchainService } from './blockchain';
+import { fdcService } from './fdc';
+import { ftsoService } from './ftso';
+import { riskService } from './risk';
 
 /**
  * AI Decision Service
@@ -62,6 +63,57 @@ class AIService {
         .filter((opp) => opp !== bestOpportunity)
         .map((opp) => opp.opportunity.protocol),
     });
+
+    // Integrated Verifiable AI consensus check
+    let enclaveSignature = "";
+    
+    try {
+      const aiAgentUrl = process.env.AI_AGENT_URL || 'http://localhost:8080';
+      const consensusResponse = await fetch(`${aiAgentUrl}/consensus-decide`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          strategy_name: `Allocation of ${amount} ${asset} to ${bestOpportunity.opportunity.protocol}`,
+          portfolio: { asset, amount },
+          market_data: { risk_score: bestOpportunity.riskScore.overall }
+        })
+      });
+      
+      if (consensusResponse.ok) {
+        const consensusData = await consensusResponse.json() as any;
+        
+        // Critical: Extract the Enclave Signature
+        if (consensusData.attestation && consensusData.attestation.signature) {
+             enclaveSignature = consensusData.attestation.signature;
+        } else {
+             throw new Error("Consensus response missing attestation signature");
+        }
+
+        decision.onChainHash = consensusData.decision_id; // Set the attestation hash
+        decision.modelCid = consensusData.decision.model_cid;
+        decision.xaiTrace = consensusData.decision.xai_trace;
+        decision.reasons.push(`Consensus: ${consensusData.decision.final_decision}`);
+        decision.reasons.push(`Compliance: ${consensusData.decision.compliance_status}`);
+        decision.reasons.push(`Industry Model CID: ${consensusData.decision.model_cid}`);
+      } else {
+        throw new Error(`Consensus Agent returned error: ${consensusResponse.status}`);
+      }
+    } catch (error) {
+      logger.error('Verifiable AI Consensus Critical Failure:', error);
+      throw new Error("Security Violation: Enclave Unreachable or Corrupt. Decision Aborted.");
+    }
+
+    // Automated On-Chain Logging (Milestone 5)
+    // ONLY log if we have a verified signature from the Enclave
+    if (enclaveSignature) {
+        // We await this to ensure on-chain consistency before returning to user
+        await blockchainService.logDecisionOnChain(decision, enclaveSignature).catch(err => {
+          logger.error('Failed to trigger on-chain logging:', err);
+          throw new Error("Blockchain Logging Failed"); 
+        });
+    } else {
+        throw new Error("FATAL: Enclave Signature missing in final verification step");
+    }
 
     return decision;
   }
