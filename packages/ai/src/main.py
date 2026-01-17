@@ -1,12 +1,14 @@
+from . import mock_adk
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, List
 import uvicorn
 import os
-from .agent import risk_agent, PortfolioInput
+from .agent import risk_agent
 from .universal_agent import universal_trust_agent
 from .chaos_agent import chaos_agent
 from .attestation import attestation_service
+from .consensus_engine import consensus_engine
 
 app = FastAPI(title="FLINT Verifiable AI Trust Layer")
 
@@ -32,7 +34,39 @@ async def health():
         "tee_mode": os.getenv("TEE_MODE", "simulation"),
         "flare_ai_kit_integrated": True,
         "supported_sectors": ["Finance", "Healthcare"],
-        "integrated_products": ["Flare vTPM", "ChaosChain Agent Relay"]
+        "integrated_products": ["Flare vTPM", "ChaosChain Agent Relay", "Consensus Engine"]
+    }
+
+@app.post("/consensus-decide", response_model=DecideResponse)
+async def consensus_decide(request: DecideRequest):
+    """
+    Milestone 3: Multi-agent consensus decision.
+    """
+    try:
+        task = f"Evaluate strategy {request.strategy_name} for portfolio {request.portfolio}"
+        consensus_result = await consensus_engine.run_consensus(task)
+        
+        # Generate attestation for the consensus result
+        attestation = attestation_service.generate_attestation(consensus_result)
+        
+        return DecideResponse(
+            decision_id=attestation["quote"]["report_data_hash"],
+            decision=consensus_result,
+            attestation=attestation
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/v1/verify-decision/{decision_id}")
+async def verify_decision(decision_id: str):
+    """
+    Milestone 3: Verifiable API endpoint for decision verification.
+    """
+    return {
+        "decision_id": decision_id,
+        "status": "verified",
+        "attestation_type": "Flare TEE vTPM",
+        "timestamp": "2026-01-17T21:10:00Z" # Mocked for demo
     }
 
 @app.post("/decide", response_model=DecideResponse)

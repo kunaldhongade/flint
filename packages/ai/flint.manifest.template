@@ -1,0 +1,41 @@
+# Gramine Manifest for FLINT AI Agent
+
+loader.entrypoint = "file:{{ gramine.libos }}"
+libos.entrypoint = "{{ entrypoint }}"
+
+loader.log_level = "{{ log_level }}"
+
+# Environment Variables
+loader.env.LD_LIBRARY_PATH = "/lib:/usr/lib:{{ arch_libdir }}:/usr/local/lib"
+loader.env.PYTHONUNBUFFERED = "1"
+loader.env.TEE_MODE = "production"
+
+# Trusted Files (Integrity Protection)
+# These files are measured and hashed. Any change breaks the measurement.
+sgx.trusted_files = [
+  "file:{{ gramine.libos }}",
+  "file:{{ entrypoint }}",
+  "file:{{ gramine.runtimedir() }}/",
+  "file:/usr/lib/",
+  "file:/usr/local/lib/",
+  "file:/app/src/",
+  "file:/app/flint.manifest",
+]
+
+# Allowed Files (Read-only, Checked at runtime, but not part of MRENCLAVE measurement if specified loosely)
+# We want strictness, so we mostly use trusted_files.
+
+# Networking (Allow outbound/inbound)
+sgx.remote_attestation = "dcap"
+sgx.enable_stats = true
+
+# Threading
+sgx.max_threads = 64
+
+# FS Mount points
+fs.mounts = [
+  { path = "/lib", uri = "file:{{ gramine.runtimedir() }}" },
+  { path = "/usr", uri = "file:/usr" },
+  { path = "/app", uri = "file:/app" },
+  { path = "/tmp", type = "tmpfs" },
+]
