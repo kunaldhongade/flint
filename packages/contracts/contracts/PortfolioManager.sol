@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./FeeManager.sol";
@@ -12,7 +14,7 @@ import "./DecisionLogger.sol";
  * @title PortfolioManager
  * @notice Manages user portfolios and integrates with FeeManager and DecisionLogger
  */
-contract PortfolioManager is Ownable, ReentrancyGuard {
+contract PortfolioManager is Initializable, UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     FeeManager public feeManager;
@@ -38,12 +40,22 @@ contract PortfolioManager is Ownable, ReentrancyGuard {
     event PositionRemoved(address indexed user, address indexed asset, address indexed protocol);
     event PortfolioValueUpdated(address indexed user, uint256 totalValueUSD);
 
-    constructor(address _feeManager, address _decisionLogger) Ownable(msg.sender) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _feeManager, address _decisionLogger) public initializer {
+        __Ownable_init(msg.sender);
+        __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
         require(_feeManager != address(0), "PortfolioManager: invalid fee manager");
         require(_decisionLogger != address(0), "PortfolioManager: invalid decision logger");
         feeManager = FeeManager(_feeManager);
         decisionLogger = DecisionLogger(_decisionLogger);
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /**
      * @notice Add a new position to user's portfolio

@@ -1,39 +1,44 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "./DecisionVerifier.sol";
 
 /**
  * @title DecisionLogger
- * @notice Immutable on-chain storage for AI decision logs with full audit trail
+ * @notice Immutable on-chain storage for AI decision logs with full audit trail.
+ * Now enforced by DecisionVerifier with Domain Separation.
  */
-contract DecisionLogger is Ownable {
+contract DecisionLogger is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    DecisionVerifier public verifier;
+    
+    // Domain Separator to prevent cross-chain or cross-contract replay attacks
+    bytes32 public DOMAIN_SEPARATOR;
+
     struct Decision {
         bytes32 id;
         uint256 timestamp;
-        uint8 action; // 0=ALLOCATE, 1=REALLOCATE, 2=DEALLOCATE, 3=HOLD
+        uint8 action;
         address user;
         address asset;
         uint256 amount;
         address fromProtocol;
         address toProtocol;
-        uint256 confidenceScore; // 0-10000 (10000 = 100%)
-        string reasons; // JSON string of reasons
-        string dataSources; // JSON string of data sources
-        string alternatives; // JSON string of alternatives considered
-        bytes32 onChainHash; // Hash of off-chain decision data
+        uint256 confidenceScore;
+        string reasons;
+        string dataSources;
+        string alternatives;
+        bytes32 onChainHash;
+        string modelCid;
+        string xaiCid;
     }
 
-    // Mapping from decision ID to Decision
     mapping(bytes32 => Decision) public decisions;
-    
-    // Mapping from user to array of decision IDs
     mapping(address => bytes32[]) public userDecisions;
-    
-    // Array of all decision IDs
     bytes32[] public allDecisions;
 
-    // Events
     event DecisionLogged(
         bytes32 indexed id,
         address indexed user,
@@ -43,8 +48,34 @@ contract DecisionLogger is Ownable {
         uint256 confidenceScore
     );
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _verifier) public initializer {
+        __Ownable_init(msg.sender);
+        __UUPSUpgradeable_init();
+        verifier = DecisionVerifier(_verifier);
+        
+        DOMAIN_SEPARATOR = keccak256(abi.encode(
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+            keccak256(bytes("FLINT_DECISION_LOGGER")),
+            keccak256(bytes("1")),
+            block.chainid,
+            address(this)
+        ));
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    function setVerifier(address _verifier) external onlyOwner {
+        verifier = DecisionVerifier(_verifier);
+    }
+
     /**
-     * @notice Log an AI decision on-chain
+     * @notice Log an AI decision on-chain.
+     * MUST be signed by a Verified Enclave.
      */
     function logDecision(
         bytes32 id,
@@ -58,11 +89,24 @@ contract DecisionLogger is Ownable {
         string memory reasons,
         string memory dataSources,
         string memory alternatives,
-        bytes32 onChainHash
-    ) external onlyOwner {
+        bytes32 onChainHash,
+        string memory modelCid,
+        string memory xaiCid,
+        bytes memory signature // New: Signature from Enclave
+    ) external {
         require(decisions[id].timestamp == 0, "DecisionLogger: decision already exists");
         require(action <= 3, "DecisionLogger: invalid action");
         require(confidenceScore <= 10000, "DecisionLogger: invalid confidence score");
+
+        // 1. Reconstruct the hash that was signed
+        // We hash the core decision parameters with DOMAIN_SEPARATOR to prevent replay
+        bytes32 decisionHash = keccak256(abi.encodePacked(
+            DOMAIN_SEPARATOR,
+            id, user, action, asset, amount, confidenceScore, onChainHash
+        ));
+
+        // 2. Verify: Unknown enclaves cannot log data
+        require(verifier.verifyDecision(decisionHash, signature), "DecisionLogger: Unauthorized Enclave Signature");
 
         Decision memory decision = Decision({
             id: id,
@@ -77,7 +121,9 @@ contract DecisionLogger is Ownable {
             reasons: reasons,
             dataSources: dataSources,
             alternatives: alternatives,
-            onChainHash: onChainHash
+            onChainHash: onChainHash,
+            modelCid: modelCid,
+            xaiCid: xaiCid
         });
 
         decisions[id] = decision;
@@ -87,48 +133,31 @@ contract DecisionLogger is Ownable {
         emit DecisionLogged(id, user, action, asset, amount, confidenceScore);
     }
 
-    /**
-     * @notice Get a decision by ID
-     */
+    // View functions (unchanged logic)
+    
     function getDecision(bytes32 id) external view returns (Decision memory) {
         require(decisions[id].timestamp != 0, "DecisionLogger: decision not found");
         return decisions[id];
     }
 
-    /**
-     * @notice Get all decisions for a user
-     */
     function getUserDecisions(address user) external view returns (bytes32[] memory) {
         return userDecisions[user];
     }
 
-    /**
-     * @notice Get total number of decisions
-     */
     function getTotalDecisions() external view returns (uint256) {
         return allDecisions.length;
     }
 
-    /**
-     * @notice Get decision IDs with pagination
-     */
     function getDecisions(uint256 offset, uint256 limit) external view returns (bytes32[] memory) {
         uint256 total = allDecisions.length;
-        if (offset >= total) {
-            return new bytes32[](0);
-        }
-        
+        if (offset >= total) return new bytes32[](0);
         uint256 end = offset + limit;
-        if (end > total) {
-            end = total;
-        }
+        if (end > total) end = total;
         
         bytes32[] memory result = new bytes32[](end - offset);
         for (uint256 i = offset; i < end; i++) {
             result[i - offset] = allDecisions[i];
         }
-        
         return result;
     }
 }
-
