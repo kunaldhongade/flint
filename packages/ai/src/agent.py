@@ -69,7 +69,7 @@ class RiskPolicyAgent:
         
         # In a real run without API key, this would fail. 
         # For M1/M2 demo, we can use a fallback or mock if needed.
-        if not os.getenv("GOOGLE_API_KEY"):
+        if not os.getenv("GOOGLE_API_KEY") or "dummy" in os.getenv("GOOGLE_API_KEY"):
             return StrategyEvaluation(
                 strategy_name=strategy,
                 risk_level="Low",

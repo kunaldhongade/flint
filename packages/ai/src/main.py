@@ -50,7 +50,7 @@ async def consensus_decide(request: DecideRequest):
         attestation = attestation_service.generate_attestation(consensus_result)
         
         return DecideResponse(
-            decision_id=attestation["quote"]["report_data_hash"],
+            decision_id=attestation["quote"]["report_data"],
             decision=consensus_result,
             attestation=attestation
         )
@@ -80,7 +80,7 @@ async def decide(request: DecideRequest):
         decision_dict = decision_result.model_dump()
         attestation = attestation_service.generate_attestation(decision_dict)
         return DecideResponse(
-            decision_id=attestation["quote"]["report_data_hash"],
+            decision_id=attestation["quote"]["report_data"],
             decision=decision_dict,
             attestation=attestation
         )
@@ -124,7 +124,7 @@ async def evaluate(request: EvaluateRequest):
         attestation = attestation_service.generate_attestation(final_decision)
         
         return DecideResponse(
-            decision_id=attestation["quote"]["report_data_hash"],
+            decision_id=attestation["quote"]["report_data"],
             decision=final_decision,
             attestation=attestation
         )

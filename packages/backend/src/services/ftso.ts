@@ -141,9 +141,9 @@ class FTSOService {
     const current = this.getPrice(symbol);
     if (!current) return null;
 
-    // TODO: Implement historical query for volatility if needed. 
-    // For now, we strictly require live prices. 
-    // If historical data is missing, we cannot safely calculate volatility.
+    // STAGING ENFORCEMENT: Live prices only.
+    // Historical volatility requires indexer which is not yet in scope for MVP.
+    // Defaulting to 0.0 volatility to ensure we don't block operations, but risk score users should be aware.
     
     return {
       current,

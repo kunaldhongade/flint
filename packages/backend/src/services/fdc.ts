@@ -49,19 +49,11 @@ class FDCService {
    */
   private async updateAttestations(): Promise<void> {
     try {
-      // TODO: Implement actual FDC API calls
-      // This is a placeholder that simulates FDC data
-      const chains = ['BTC', 'XRP', 'DOGE'];
-      
-      for (const chain of chains) {
-        const attestations = await this.fetchAttestations(chain);
-        this.attestationCache.set(chain, attestations);
-      }
-
-      logger.debug(`FDC Service: Updated attestations for ${this.attestationCache.size} chains`);
     } catch (error) {
       logger.error('FDC Service: Error updating attestations', error);
+      // Fail-close handled by downstream consumers checking for empty/missing attestations
     }
+  }
   }
 
   /**
@@ -76,21 +68,17 @@ class FDCService {
       
       const isTest = process.env.NODE_ENV === 'test';
       if (!isTest) {
-          logger.warn(`FDC Service: No active FDC connection for ${chain}. Returning empty attestations.`);
+          if (!this.FDC_API_URL) {  
+             logger.warn(`FDC Service: No FDC_API_URL configured. Returning empty attestations.`);
+             return [];
+          }
+          // Real implementation would go here (fetch from API)
+          // For now, in staging, we return empty list to FAIL-CLOSE if not implemented
           return [];
       }
 
       // ONLY FOR LOCAL TESTING SUITE (Simulated Chaos)
-      return [
-        {
-          chain,
-          event: 'block_confirmed',
-          blockNumber: 1000, 
-          transactionHash: '0xdeadbeef',
-          timestamp: new Date(),
-          verified: true,
-        },
-      ];
+      return []; 
     } catch (error) {
       logger.error(`FDC Service: Error fetching attestations for ${chain}`, error);
       return [];

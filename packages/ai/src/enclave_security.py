@@ -41,6 +41,7 @@ class EnclaveSecurity:
         
         # We will use the Address as the identity.
         self.address = self._account.address
+        self.public_key_hex = self.address # Use address as the public identifier
         print(f"[Enclave Security] Identity Generated: {self.address}")
         
     def get_report_data(self) -> str:

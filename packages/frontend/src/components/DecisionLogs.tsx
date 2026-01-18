@@ -10,7 +10,12 @@ export function DecisionLogs() {
   useEffect(() => {
     const fetchDecisions = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/decision')
+        const response = await fetch('http://localhost:3001/api/decision', {
+          headers: {
+            'x-api-key': 'flint-staging-key-123',
+            'Content-Type': 'application/json'
+          }
+        })
         if (!response.ok) throw new Error('Failed to fetch')
         const data = await response.json()
         setDecisions(data)

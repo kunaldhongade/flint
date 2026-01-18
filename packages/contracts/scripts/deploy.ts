@@ -7,7 +7,12 @@ async function main() {
 
   // Deploy FeeManager
   const FeeManager = await ethers.getContractFactory("FeeManager");
-  const treasury = deployer.address; // TODO: Replace with actual treasury address
+  
+  const treasury = process.env.TREASURY_ADDRESS;
+  if (!treasury) {
+      throw new Error("TREASURY_ADDRESS env var is missing. Cannot deploy FeeManager with mock address in staging.");
+  }
+  
   const feeManager = await FeeManager.deploy(treasury);
   await feeManager.waitForDeployment();
   console.log("FeeManager deployed to:", await feeManager.getAddress());

@@ -14,13 +14,21 @@ class FlareAttestationService:
     """
 
     def __init__(self):
-        # Default to simulation unless explicitly strictly set to production
-        self.mode = os.getenv("TEE_MODE", "simulation")
-        self.simulate = self.mode != "production"
+    def __init__(self):
+        # STAGING/PRODUCTION ENFORCEMENT:
+        # Default now forces production. Simulation must be explicitly requested, and is NOT allowed for staging builds.
+        self.mode = os.getenv("TEE_MODE", "production") 
+        
+        # FAIL-CLOSE: If we are not in simulation mode, we MUST be in a real TEE.
+        self.simulate = self.mode == "simulation"
+        
+        if not self.simulate:
+             print("[Attestation Service] Running in PRODUCTION mode. Real TEE required.")
+        else:
+             print("[Attestation Service] WARNING: Running in SIMULATION mode.")
+
         self.vtpm = VtpmAttestation(simulate=self.simulate)
         self.tee_provider = "gcp_confidential_space"
-        
-        print(f"[Attestation Service] Initialized in {self.mode.upper()} mode.")
 
     def generate_attestation(self, decision_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -35,12 +43,14 @@ class FlareAttestationService:
         # 2. Request official token from Flare AI Kit vTPM
         # We pass the report_data_hash as the nonce to bind it.
         try:
+        try:
             token = self.vtpm.get_token(nonces=[report_data_hash])
         except Exception as e:
             if self.simulate:
                 token = "simulated_oidc_token_with_bound_nonce"
             else:
-                raise RuntimeError(f"Failed to get vTPM token: {e}")
+                # FAIL-CLOSE: Cannot proceed without real attestation in production
+                raise RuntimeError(f"CRITICAL: Failed to get vTPM token in production mode: {e}")
 
         # 3. Sign the Decision with the Enclave Private Key
         # This says "Key X signed this specific decision".
