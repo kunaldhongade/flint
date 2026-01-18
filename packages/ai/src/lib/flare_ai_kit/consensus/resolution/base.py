@@ -25,7 +25,7 @@ except ImportError:
                 setattr(self, key, value)
 
 
-from flare_ai_kit.common.schemas import Prediction
+from lib.flare_ai_kit.common.schemas import Prediction
 
 
 class ConflictType(str, Enum):

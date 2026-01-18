@@ -1,6 +1,6 @@
 """Conflict resolution module for multi-agent consensus."""
 
-from flare_ai_kit.consensus.resolution.base import (
+from lib.flare_ai_kit.consensus.resolution.base import (
     BaseConflictDetector,
     BaseConflictResolver,
     BaseNegotiationProtocol,
@@ -9,11 +9,11 @@ from flare_ai_kit.consensus.resolution.base import (
     ConflictType,
     ResolutionResult,
 )
-from flare_ai_kit.consensus.resolution.detectors import (
+from lib.flare_ai_kit.consensus.resolution.detectors import (
     DomainConflictDetector,
     StatisticalConflictDetector,
 )
-from flare_ai_kit.consensus.resolution.resolvers import (
+from lib.flare_ai_kit.consensus.resolution.resolvers import (
     ExpertiseBasedResolver,
     HybridConflictResolver,
     NegotiationProtocol,

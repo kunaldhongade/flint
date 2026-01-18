@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 from typing import Union, ClassVar
 
-from flare_ai_kit.a2a.schemas import Task, TaskState, TaskStatus
+from lib.flare_ai_kit.a2a.schemas import Task,TaskState,TaskStatus
 
 
 class TaskManager:

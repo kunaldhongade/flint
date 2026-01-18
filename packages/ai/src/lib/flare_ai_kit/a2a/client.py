@@ -6,16 +6,9 @@ from typing import Union, TYPE_CHECKING, Any
 
 import httpx
 from pydantic import ValidationError
-
-from flare_ai_kit.a2a.schemas import (
-    AgentCard,
-    AgentSkill,
-    SendMessageRequest,
-    SendMessageResponse,
-    Task,
-)
-from flare_ai_kit.a2a.task_management import TaskManager
-from flare_ai_kit.common import A2AClientError
+from lib.flare_ai_kit.a2a.schemas import AgentCard,AgentSkill,SendMessageRequest,SendMessageResponse,Task
+from lib.flare_ai_kit.a2a.task_management import TaskManager
+from lib.flare_ai_kit.common import A2AClientError
 
 from .settings import A2ASettings
 

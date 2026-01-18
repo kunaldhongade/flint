@@ -8,12 +8,12 @@ import structlog
 from PIL import Image
 from pydantic import BaseModel, ValidationError, create_model
 
-from flare_ai_kit.common import PdfPostingError
-from flare_ai_kit.ingestion.settings import (
+from lib.flare_ai_kit.common import PdfPostingError
+from lib.flare_ai_kit.ingestion.settings import (
     PDFIngestionSettings,
     PDFTemplateSettings,
 )
-from flare_ai_kit.onchain.contract_poster import ContractPoster
+from lib.flare_ai_kit.onchain.contract_poster import ContractPoster
 
 logger = structlog.get_logger(__name__)
 

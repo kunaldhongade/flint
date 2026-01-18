@@ -8,7 +8,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import Union, Any
 
-from flare_ai_kit.consensus.communication.base import (
+from lib.flare_ai_kit.consensus.communication.base import (
     AgentMessage,
     BaseCommunicationChannel,
     BaseEventBus,

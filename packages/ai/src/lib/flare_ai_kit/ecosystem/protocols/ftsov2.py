@@ -8,9 +8,9 @@ except ImportError:
 
 import structlog
 
-from flare_ai_kit.common import FtsoFeedCategory, FtsoV2Error, load_abi
-from flare_ai_kit.ecosystem.flare import Flare
-from flare_ai_kit.ecosystem.settings import EcosystemSettings
+from lib.flare_ai_kit.common import FtsoFeedCategory, FtsoV2Error, load_abi
+from lib.flare_ai_kit.ecosystem.flare import Flare
+from lib.flare_ai_kit.ecosystem.settings import EcosystemSettings
 
 logger = structlog.get_logger(__name__)
 

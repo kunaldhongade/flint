@@ -7,7 +7,7 @@ from pathlib import Path
 
 import structlog
 
-from flare_ai_kit.common import VtpmAttestationError
+from lib.flare_ai_kit.common import VtpmAttestationError
 
 logger = structlog.get_logger(__name__)
 

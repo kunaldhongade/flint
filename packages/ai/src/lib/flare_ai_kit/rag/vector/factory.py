@@ -5,11 +5,11 @@ from dataclasses import dataclass
 import structlog
 from qdrant_client import QdrantClient
 
-from flare_ai_kit.agent.settings import AgentSettings
-from flare_ai_kit.common import FlareAIKitError
-from flare_ai_kit.rag.vector.embedding import GeminiEmbedding
-from flare_ai_kit.rag.vector.retriever import QdrantRetriever
-from flare_ai_kit.rag.vector.settings import VectorDbSettings
+from lib.flare_ai_kit.agent.settings import AgentSettings
+from lib.flare_ai_kit.common import FlareAIKitError
+from lib.flare_ai_kit.rag.vector.embedding import GeminiEmbedding
+from lib.flare_ai_kit.rag.vector.retriever import QdrantRetriever
+from lib.flare_ai_kit.rag.vector.settings import VectorDbSettings
 
 logger = structlog.get_logger(__name__)
 

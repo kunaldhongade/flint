@@ -3,7 +3,7 @@ from typing import Union
 
 from collections import Counter
 
-from flare_ai_kit.common import Prediction
+from lib.flare_ai_kit.common import Prediction
 
 
 def top_confidence(predictions: list[Prediction]) ->Union[ str, float]:
