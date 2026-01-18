@@ -1,0 +1,57 @@
+# Production TEE Dockerfile for FLINT (Intel TDX / Gramine)
+# Based on the official Gramine + Python image
+
+FROM gramineproject/gramine:v1.7-jammy AS gramine-build
+
+# Set up environment
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-dev \
+    build-essential \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+
+# Copy Gramine Manifest (to be created)
+COPY flint.manifest.template .
+
+# Generate the signing key (for development/testing - CI/CD should provide this)
+RUN gramine-sgx-gen-private-key
+
+# Build Gramine manifest and sign (Shim Layer)
+# Note: REAL production signing happens in a secure offline environment.
+# This builds the enclave image.
+RUN gramine-manifest \
+    -Dlog_level=error \
+    flint.manifest.template \
+    flint.manifest
+
+RUN gramine-sgx-sign \
+    --manifest flint.manifest \
+    --output flint.manifest.sgx
+
+# Final Production Image (Multi-stage not strictly used here to keep Gramine bins, but good practice)
+# We keep the build env for now as Gramine needs its libs.
+
+# Expose API Port
+EXPOSE 8080
+
+# Entrypoint via Gramine SGX
+# This runs the python app INSIDE the enclave
+CMD ["gramine-sgx", "flint"]

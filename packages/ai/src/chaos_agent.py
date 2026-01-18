@@ -1,6 +1,11 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any
-from pydantic_ai import Agent
+try:
+    from pydantic_ai import Agent
+except ImportError:
+    class Agent:
+        def __init__(self, *args, **kwargs): pass
+        async def run(self, *args, **kwargs): pass
 import os
 from dotenv import load_dotenv
 

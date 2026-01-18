@@ -1,5 +1,9 @@
 # FLINT: Flare Intelligence Network for Trust
 
+[![Flare Network](https://img.shields.io/badge/Flare_Network-FFD700?style=for-the-badge&logo=flare&logoColor=black)](https://flare.network)
+[![PydanticAI](https://img.shields.io/badge/PydanticAI-v0.1.0-blue?style=for-the-badge)](https://pydantic-ai.com)
+[![License](https://img.shields.io/badge/License-Apache_2.0-green?style=for-the-badge)](LICENSE)
+
 **Verifiable AI Agent Infrastructure for Institutional DeFi on Flare**
 
 FLINT is a high-integrity infrastructure layer providing verifiable AI agents for DeFi yield optimization, risk management, and compliance on the Flare Network. Built on the **Flare AI Kit**, FLINT enables institutions to deploy capital with confidence through cryptographically attested AI decisions and human-readable audit trails.
@@ -59,6 +63,15 @@ npm run dev
 | **Backend** | `npm run dev:backend` | `npm run test:backend` |
 | **Frontend** | `npm run dev:frontend` | `npm test` |
 | **Contracts** | `cd packages/contracts && npx hardhat compile` | `npm run test:contracts` |
+
+---
+
+## 📚 Documentation
+
+Detailed technical documentation is available in the `docs` directory:
+
+- [**Architecture Overview**](docs/ARCHITECTURE.md): Deep dive into the TEE, vTPM, and FTSO integration.
+- [**Compliance Readiness**](docs/COMPLIANCE_READINESS.md): How FLINT maps to regulatory frameworks.
 
 ---
 

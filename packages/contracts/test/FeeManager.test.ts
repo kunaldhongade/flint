@@ -12,13 +12,14 @@ describe("FeeManager", function () {
   beforeEach(async function () {
     [owner, treasury, user] = await ethers.getSigners();
 
-    // Deploy mock ERC20 token
+    // Deploy MockERC20 (Standard, not upgradeable for this test)
     const MockERC20 = await ethers.getContractFactory("MockERC20");
     mockToken = await MockERC20.deploy("Test Token", "TEST", ethers.parseEther("1000000"));
 
-    // Deploy FeeManager
+    // Deploy FeeManager (Upgradeable)
     const FeeManagerFactory = await ethers.getContractFactory("FeeManager");
-    feeManager = await FeeManagerFactory.deploy(treasury.address);
+    feeManager = (await upgrades.deployProxy(FeeManagerFactory, [treasury.address], { kind: 'uups' })) as unknown as FeeManager;
+    await feeManager.waitForDeployment();
   });
 
   describe("Deployment", function () {
