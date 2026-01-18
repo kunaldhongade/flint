@@ -7,7 +7,7 @@ except ImportError:
         def __init__(self, *args, **kwargs): pass
         async def run(self, *args, **kwargs): pass
     class RunContext: pass
-from lib.flare_ai_kit.agent.ecosystem_tools import get_ftso_latest_price
+from .lib.flare_ai_kit.agent.ecosystem_tools import get_ftso_latest_price
 import os
 from typing import Dict,Any
 from dotenv import load_dotenv
