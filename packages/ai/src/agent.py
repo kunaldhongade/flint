@@ -35,6 +35,7 @@ class RiskPolicyAgent:
         # For the prototype/MVP, we'll use a mock agent or a simple LLM call if API key is present
         self.agent = Agent(
             'google-gla:gemini-1.5-flash', # Defaulting to flash for speed/cost
+
             output_type=StrategyEvaluation,
             system_prompt=(
                 "You are the FLINT Risk & Policy Agent. Your mission is to evaluate "

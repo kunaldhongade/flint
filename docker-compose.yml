@@ -1,0 +1,49 @@
+
+
+services:
+  backend:
+    container_name: flint-backend
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    ports:
+      - "${BACKEND_PORT:-3333}:${PORT:-3001}"
+    env_file: .env
+    depends_on:
+      - redis
+      - ai
+    networks:
+      - flint-network
+
+  ai:
+    container_name: flint-ai
+    build:
+      context: packages/ai
+      dockerfile: Dockerfile
+    ports:
+      - "${AI_PORT_HOST:-8888}:8080"
+    env_file: .env
+    networks:
+      - flint-network
+
+  redis:
+    container_name: flint-redis
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT_HOST:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - flint-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  flint-network:
+    driver: bridge
+
+volumes:
+  redis_data:
