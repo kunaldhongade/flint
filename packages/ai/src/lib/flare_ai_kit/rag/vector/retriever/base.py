@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from flare_ai_kit.common import SemanticSearchResult
+from lib.flare_ai_kit.common import SemanticSearchResult
 
 
 class BaseRetriever(ABC):

@@ -4,8 +4,8 @@ import base64
 import json
 import os
 from typing import Dict, Any
-from .lib.flare_ai_kit.tee.attestation import VtpmAttestation
-from .enclave_security import enclave_security
+from lib.flare_ai_kit.tee.attestation import VtpmAttestation
+from enclave_security import enclave_security
 
 class FlareAttestationService:
     """

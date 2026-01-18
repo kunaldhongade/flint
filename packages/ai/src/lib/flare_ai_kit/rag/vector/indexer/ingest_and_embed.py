@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from flare_ai_kit.rag.vector.embedding.base import BaseEmbedding
-from flare_ai_kit.rag.vector.indexer.base import BaseIndexer
+from lib.flare_ai_kit.rag.vector.embedding.base import BaseEmbedding
+from lib.flare_ai_kit.rag.vector.indexer.base import BaseIndexer
 
 
 def ingest_and_embed(

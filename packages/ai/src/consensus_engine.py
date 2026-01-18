@@ -2,9 +2,9 @@ import hashlib
 import os
 import asyncio
 from typing import Dict, Any, List
-from .consensus_agents import conservative_agent, neutral_agent, aggressive_agent, AgentDecision
-from .lib.flare_ai_kit.common.schemas import Prediction
-from .lib.flare_ai_kit.consensus.aggregator.strategies import majority_vote
+from consensus_agents import conservative_agent, neutral_agent, aggressive_agent, AgentDecision
+from lib.flare_ai_kit.common.schemas import Prediction
+from lib.flare_ai_kit.consensus.aggregator.strategies import majority_vote
 
 class PolicyEngine:
     """
@@ -47,7 +47,7 @@ class ConsensusEngine:
         """
         Runs the target task through three independent agents and reaches a consensus.
         """
-        if not os.getenv("GEMINI_API_KEY"):
+        if not os.getenv("GOOGLE_API_KEY"):
             # Mock results for demo
             results = [
                 AgentDecision(agent_id="conservative", decision="approve", justification="Low risk", confidence=0.9, risk_score=0.1),

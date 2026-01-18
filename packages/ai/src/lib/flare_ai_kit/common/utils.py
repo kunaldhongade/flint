@@ -4,7 +4,7 @@ import importlib.resources
 import json
 from functools import cache
 
-from flare_ai_kit.common.exceptions import AbiError
+from lib.flare_ai_kit.common.exceptions import AbiError
 
 
 # Use cache to avoid reloading/reparsing the same ABI repeatedly

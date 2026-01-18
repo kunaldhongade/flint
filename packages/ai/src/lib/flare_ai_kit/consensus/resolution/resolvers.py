@@ -4,8 +4,8 @@ import statistics
 import uuid
 from typing import Union, Any
 
-from flare_ai_kit.common.schemas import Prediction
-from flare_ai_kit.consensus.resolution.base import (
+from lib.flare_ai_kit.common.schemas import Prediction
+from lib.flare_ai_kit.consensus.resolution.base import (
     BaseConflictResolver,
     BaseNegotiationProtocol,
     ConflictContext,

@@ -6,10 +6,10 @@ from typing import Union, Any, cast
 from web3.contract import Contract
 from web3.exceptions import Web3Exception
 
-from flare_ai_kit.common.exceptions import FAssetsContractError, FAssetsError
-from flare_ai_kit.common.schemas import AgentInfo, FAssetInfo, FAssetType
-from flare_ai_kit.ecosystem.flare import Flare
-from flare_ai_kit.ecosystem.settings import EcosystemSettings
+from lib.flare_ai_kit.common.exceptions import FAssetsContractError, FAssetsError
+from lib.flare_ai_kit.common.schemas import AgentInfo, FAssetInfo, FAssetType
+from lib.flare_ai_kit.ecosystem.flare import Flare
+from lib.flare_ai_kit.ecosystem.settings import EcosystemSettings
 
 logger = logging.getLogger(__name__)
 

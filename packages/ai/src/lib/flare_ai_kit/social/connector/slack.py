@@ -6,8 +6,8 @@ from typing import Union, Any
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from flare_ai_kit.config import AppSettings
-from flare_ai_kit.social.connector import SocialConnector
+from lib.flare_ai_kit.config import AppSettings
+from lib.flare_ai_kit.social.connector import SocialConnector
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

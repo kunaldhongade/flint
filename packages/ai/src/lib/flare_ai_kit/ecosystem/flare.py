@@ -20,8 +20,8 @@ from web3.middleware import (
 )
 from web3.types import TxParams
 
-from flare_ai_kit.common import FlareTxError, FlareTxRevertedError, load_abi
-from flare_ai_kit.ecosystem.settings import EcosystemSettings
+from lib.flare_ai_kit.common import FlareTxError, FlareTxRevertedError, load_abi
+from lib.flare_ai_kit.ecosystem.settings import EcosystemSettings
 
 logger = structlog.get_logger(__name__)
 

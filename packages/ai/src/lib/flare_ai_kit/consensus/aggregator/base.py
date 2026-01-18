@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 
-from flare_ai_kit.common import Prediction
+from lib.flare_ai_kit.common import Prediction
 
 
 class BaseAggregator(ABC):

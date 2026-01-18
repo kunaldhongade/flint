@@ -1,6 +1,6 @@
 """Dynamic agent interaction management module."""
 
-from flare_ai_kit.consensus.management.dynamic import (
+from lib.flare_ai_kit.consensus.management.dynamic import (
     AgentPerformanceMetrics,
     DynamicInteractionManager,
     InteractionPattern,

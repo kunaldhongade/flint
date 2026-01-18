@@ -7,7 +7,7 @@ from typing import Union, Any
 import fitz  # type: ignore[reportMissingTypeStubs]
 from google.adk.tools.tool_context import ToolContext  # noqa: TC002
 
-from flare_ai_kit.agent.tools import adk_tool
+from lib.flare_ai_kit.agent.tools import adk_tool
 
 
 @adk_tool

@@ -30,7 +30,7 @@ class FlareAIKit:
 
         Examples:
         ```python
-        from flare_ai_kit import FlareAIKit
+        from lib.flare_ai_kit import FlareAIKit
         kit = FlareAIKit()
         balance = await kit.flare.check_balance("0x...")
         price = await (await kit.ftso).get_latest_price("FLR/USD")

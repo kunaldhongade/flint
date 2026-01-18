@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ValidationError
 
-from flare_ai_kit.a2a.schemas import (
+from lib.flare_ai_kit.a2a.schemas import (
     A2ARequest,
     AgentCard,
     InternalError,

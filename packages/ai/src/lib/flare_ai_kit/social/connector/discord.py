@@ -5,8 +5,8 @@ from typing import Any
 
 from discord import Client, Intents, Message, TextChannel
 
-from flare_ai_kit.config import AppSettings
-from flare_ai_kit.social.connector import SocialConnector
+from lib.flare_ai_kit.config import AppSettings
+from lib.flare_ai_kit.social.connector import SocialConnector
 
 
 class DiscordConnector(SocialConnector):

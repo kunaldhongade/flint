@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from OpenSSL.crypto import X509, X509Store, X509StoreContext
 from OpenSSL.crypto import Error as OpenSSLError
 
-from flare_ai_kit.common import (
+from lib.flare_ai_kit.common import (
     CertificateParsingError,
     InvalidCertificateChainError,
     SignatureValidationError,

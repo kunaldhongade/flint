@@ -10,8 +10,8 @@ from urllib.parse import urlparse
 import structlog
 from dulwich import porcelain
 
-from flare_ai_kit.common import Chunk, ChunkMetadata
-from flare_ai_kit.ingestion.settings import IngestionSettings
+from lib.flare_ai_kit.common import Chunk, ChunkMetadata
+from lib.flare_ai_kit.ingestion.settings import IngestionSettings
 
 logger = structlog.get_logger(__name__)
 

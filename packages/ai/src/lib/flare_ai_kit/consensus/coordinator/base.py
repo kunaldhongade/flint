@@ -17,7 +17,7 @@ except ImportError:
                 setattr(self, key, value)
 
 
-from flare_ai_kit.common import AgentRole
+from lib.flare_ai_kit.common import AgentRole
 
 
 class BaseCoordinator(ABC):
