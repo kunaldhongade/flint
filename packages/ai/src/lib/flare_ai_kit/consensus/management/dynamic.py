@@ -27,9 +27,9 @@ except ImportError:
                 setattr(self, key, value)
 
 
-from flare_ai_kit.common.schemas import Prediction
-from flare_ai_kit.consensus.communication import CommunicationManager
-from flare_ai_kit.consensus.coordinator.simple import CoordinatorAgent
+from lib.flare_ai_kit.common.schemas import Prediction
+from lib.flare_ai_kit.consensus.communication import CommunicationManager
+from lib.flare_ai_kit.consensus.coordinator.simple import CoordinatorAgent
 
 # Constants for interaction pattern thresholds
 MIN_AGENTS_FOR_COMPETITIVE = 3

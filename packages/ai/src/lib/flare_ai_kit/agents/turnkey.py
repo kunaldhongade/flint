@@ -8,10 +8,10 @@ from typing import Union, Any
 import structlog
 from pydantic import BaseModel, Field
 
-from flare_ai_kit.tee.validation import VtpmValidation
-from flare_ai_kit.wallet import TransactionPolicy, TurnkeyWallet
-from flare_ai_kit.wallet.base import TransactionRequest
-from flare_ai_kit.wallet.permissions import TimeWindow
+from lib.flare_ai_kit.tee.validation import VtpmValidation
+from lib.flare_ai_kit.wallet import TransactionPolicy, TurnkeyWallet
+from lib.flare_ai_kit.wallet.base import TransactionRequest
+from lib.flare_ai_kit.wallet.permissions import TimeWindow
 
 logger = structlog.get_logger(__name__)
 

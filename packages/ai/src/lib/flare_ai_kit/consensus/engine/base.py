@@ -1,8 +1,8 @@
 """Core consensus engine for orchestrating agents and aggregating results."""
 
-from flare_ai_kit.common import Prediction
-from flare_ai_kit.consensus.aggregator.base import BaseAggregator
-from flare_ai_kit.consensus.coordinator.base import BaseCoordinator
+from lib.flare_ai_kit.common import Prediction
+from lib.flare_ai_kit.consensus.aggregator.base import BaseAggregator
+from lib.flare_ai_kit.consensus.coordinator.base import BaseCoordinator
 
 
 class ConsensusEngine:

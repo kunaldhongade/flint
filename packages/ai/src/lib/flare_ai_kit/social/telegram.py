@@ -5,7 +5,7 @@ import structlog
 from telegram.error import TelegramError
 from telegram.ext import Application
 
-from flare_ai_kit.social.settings import SocialSettings
+from lib.flare_ai_kit.social.settings import SocialSettings
 
 logger = structlog.get_logger(__name__)
 

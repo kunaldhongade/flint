@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pydantic import BaseModel
 
-from flare_ai_kit.tee.validation import VtpmValidation
+from lib.flare_ai_kit.tee.validation import VtpmValidation
 
 logger = structlog.get_logger(__name__)
 

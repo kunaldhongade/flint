@@ -19,8 +19,8 @@ except ImportError:
                 setattr(self, key, value)
 
 
-from flare_ai_kit.common import AgentRole, Prediction
-from flare_ai_kit.consensus.coordinator.base import BaseCoordinator
+from lib.flare_ai_kit.common import AgentRole, Prediction
+from lib.flare_ai_kit.consensus.coordinator.base import BaseCoordinator
 
 
 @dataclass

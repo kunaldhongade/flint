@@ -11,15 +11,15 @@ from urllib.parse import urljoin
 import httpx
 import structlog
 
-from flare_ai_kit.common import (
+from lib.flare_ai_kit.common import (
     AttestationNotFoundError,
     DALayerError,
     FTSOAnchorFeed,
     FTSOAnchorFeedsWithProof,
     VotingRound,
 )
-from flare_ai_kit.ecosystem.flare import Flare
-from flare_ai_kit.ecosystem.settings import EcosystemSettings
+from lib.flare_ai_kit.ecosystem.flare import Flare
+from lib.flare_ai_kit.ecosystem.settings import EcosystemSettings
 
 # HTTP Status Codes
 HTTP_NOT_FOUND = 404

@@ -13,8 +13,8 @@ from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from web3 import Web3
 
-from flare_ai_kit.tee.validation import VtpmValidation
-from flare_ai_kit.wallet.permissions import PermissionEngine, PolicyAction
+from lib.flare_ai_kit.tee.validation import VtpmValidation
+from lib.flare_ai_kit.wallet.permissions import PermissionEngine, PolicyAction
 
 from .base import SignedTransaction, TransactionRequest, WalletAddress, WalletInterface
 

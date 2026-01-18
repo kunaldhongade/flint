@@ -7,7 +7,7 @@ except ImportError:
         def __init__(self, *args, **kwargs): pass
         async def run(self, *args, **kwargs): pass
     class RunContext: pass
-from .lib.flare_ai_kit.agent.ecosystem_tools import get_ftso_latest_price
+from lib.flare_ai_kit.agent.ecosystem_tools import get_ftso_latest_price
 import os
 from typing import Dict,Any
 from dotenv import load_dotenv
@@ -21,7 +21,9 @@ class StrategyEvaluation(BaseModel):
     justification: str
     confidence: float
     asset_prices: Dict[str, float] = Field(default_factory=dict)
-
+class PortfolioInput(BaseModel):
+    assets: List[Dict[str, Any]]
+    total_value_usd: float
 class RiskPolicyAgent:
     """
     Risk & Policy Agent for FLINT.
@@ -34,6 +36,7 @@ class RiskPolicyAgent:
         self.agent = Agent(
             'google-gla:gemini-1.5-flash', # Defaulting to flash for speed/cost
 
+            output_type=StrategyEvaluation,
             system_prompt=(
                 "You are the FLINT Risk & Policy Agent. Your mission is to evaluate "
                 "DeFi yield strategies on the Flare Network. You have access to real-time "

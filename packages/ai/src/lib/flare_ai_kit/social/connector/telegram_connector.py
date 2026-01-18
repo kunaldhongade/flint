@@ -7,8 +7,8 @@ import structlog
 from telegram import Update
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
 
-from flare_ai_kit.config import AppSettings
-from flare_ai_kit.social.connector import SocialConnector
+from lib.flare_ai_kit.config import AppSettings
+from lib.flare_ai_kit.social.connector import SocialConnector
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = structlog.get_logger(__name__)

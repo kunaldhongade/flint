@@ -18,6 +18,7 @@ def create_strategy_agent(agent_id: str, strategy_prompt: str) -> Agent:
     return Agent(
         'google-gla:gemini-1.5-flash',
 
+        output_type=AgentDecision,
         system_prompt=(
             f"You are the FLINT {agent_id} Agent. {strategy_prompt} "
             "Evaluate DeFi strategies and provide a clear approve/reject decision."

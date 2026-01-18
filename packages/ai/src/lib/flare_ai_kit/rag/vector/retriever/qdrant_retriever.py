@@ -13,11 +13,11 @@ from qdrant_client.http.models import (
     VectorParams,
 )
 
-from flare_ai_kit.common import (
+from lib.flare_ai_kit.common import (
     SemanticSearchResult,
 )
-from flare_ai_kit.rag.vector.embedding import BaseEmbedding
-from flare_ai_kit.rag.vector.settings import VectorDbSettings
+from lib.flare_ai_kit.rag.vector.embedding import BaseEmbedding
+from lib.flare_ai_kit.rag.vector.settings import VectorDbSettings
 
 from .base import BaseRetriever
 

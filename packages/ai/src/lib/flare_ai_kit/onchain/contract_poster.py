@@ -4,10 +4,10 @@ from typing import Union, TYPE_CHECKING, Any
 
 import structlog
 
-from flare_ai_kit.common import FlareTxError, load_abi
-from flare_ai_kit.ecosystem.flare import Flare
-from flare_ai_kit.ecosystem.settings import EcosystemSettings
-from flare_ai_kit.ingestion.settings import OnchainContractSettings
+from lib.flare_ai_kit.common import FlareTxError, load_abi
+from lib.flare_ai_kit.ecosystem.flare import Flare
+from lib.flare_ai_kit.ecosystem.settings import EcosystemSettings
+from lib.flare_ai_kit.ingestion.settings import OnchainContractSettings
 
 if TYPE_CHECKING:
     from web3.types import TxParams

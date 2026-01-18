@@ -14,7 +14,7 @@ import structlog
 from google import genai  # pyright: ignore[reportMissingTypeStubs]
 from google.genai import types  # pyright: ignore[reportMissingTypeStubs]
 
-from flare_ai_kit.common import EmbeddingsError
+from lib.flare_ai_kit.common import EmbeddingsError
 
 from .base import BaseEmbedding
 

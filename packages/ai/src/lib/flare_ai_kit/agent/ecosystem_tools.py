@@ -12,9 +12,9 @@ from httpx import HTTPStatusError, RequestError, TimeoutException
 from web3.contract.async_contract import AsyncContractFunction
 from web3.types import TxParams
 
-from flare_ai_kit.agent.context import kit
-from flare_ai_kit.agent.tools import adk_tool
-from flare_ai_kit.common import AbiError, ExplorerError
+from lib.flare_ai_kit.agent.context import kit
+from lib.flare_ai_kit.agent.tools import adk_tool
+from lib.flare_ai_kit.common import AbiError, ExplorerError
 
 # --- Flare Network ---
 

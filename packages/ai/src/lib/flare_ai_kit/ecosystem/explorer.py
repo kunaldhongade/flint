@@ -6,8 +6,8 @@ import httpx
 import structlog
 from httpx import HTTPStatusError, RequestError, TimeoutException
 
-from flare_ai_kit.common import AbiError, ExplorerError
-from flare_ai_kit.ecosystem.settings import EcosystemSettings
+from lib.flare_ai_kit.common import AbiError, ExplorerError
+from lib.flare_ai_kit.ecosystem.settings import EcosystemSettings
 
 logger = structlog.get_logger(__name__)
 
