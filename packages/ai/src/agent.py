@@ -2,7 +2,10 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from pydantic_ai import Agent, RunContext
 import os
+from typing import Dict,Any
+from dotenv import load_dotenv
 
+load_dotenv()
 class RiskPolicyResponse(BaseModel):
     decision: str = Field(description="approve or reject")
     reasons: List[str] = Field(description="List of reasons for the decision")
@@ -18,8 +21,8 @@ class RiskPolicyAgent:
         # In a real scenario, we'd use a specific model like 'google-gla:gemini-1.5-pro'
         # For the prototype/MVP, we'll use a mock agent or a simple LLM call if API key is present
         self.agent = Agent(
-            'google-gla:gemini-1.5-flash', # Defaulting to flash for speed/cost
-            result_type=RiskPolicyResponse,
+            'google-gla:gemini-2.5-pro', # Defaulting to flash for speed/cost
+            output_type=RiskPolicyResponse,
             system_prompt=(
                 "You are the FLINT Risk & Policy Agent. Your job is to evaluate DeFi yield strategies "
                 "against institutional risk policies. You must provide a clear 'approve' or 'reject' "
@@ -46,7 +49,7 @@ class RiskPolicyAgent:
         
         # In a real run without API key, this would fail. 
         # For M1/M2 demo, we can use a fallback or mock if needed.
-        if not os.getenv("GEMINI_API_KEY"):
+        if not os.getenv("GOOGLE_API_KEY"):
             return RiskPolicyResponse(
                 decision="approve",
                 reasons=["Simulated approval: Gemini API key missing", "Market data looks stable"],

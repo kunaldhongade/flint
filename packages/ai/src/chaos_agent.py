@@ -2,6 +2,9 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 from pydantic_ai import Agent
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class ChaosEvaluation(BaseModel):
     is_robust: bool = Field(description="True if the decision survives stress testing")
@@ -15,8 +18,8 @@ class ChaosVerificationAgent:
     """
     def __init__(self):
         self.agent = Agent(
-            'google-gla:gemini-1.5-flash',
-            result_type=ChaosEvaluation,
+            'google-gla:gemini-2.5-pro',
+            output_type=ChaosEvaluation,
             system_prompt=(
                 "You are the FLINT Chaos Verification Agent. Your job is to perform 'Chaos Engineering' "
                 "on AI decisions. You simulate adversarial market conditions, data corruption, and "
@@ -40,7 +43,7 @@ class ChaosVerificationAgent:
         3. Adversarial data injection in the evaluation context.
         """
         
-        if not os.getenv("GEMINI_API_KEY"):
+        if not os.getenv("GOOGLE_API_KEY"):
             return ChaosEvaluation(
                 is_robust=True,
                 stress_results=["Simulated market crash survived", "Data latency handled"],

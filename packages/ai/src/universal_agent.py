@@ -2,6 +2,9 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from pydantic_ai import Agent
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class PolicyDecision(BaseModel):
     decision: str = Field(description="approve or reject")
@@ -16,8 +19,8 @@ class UniversalPolicyAgent:
     """
     def __init__(self):
         self.agent = Agent(
-            'google-gla:gemini-1.5-flash',
-            result_type=PolicyDecision,
+            'google-gla:gemini-2.5-pro',
+            output_type=PolicyDecision,
             system_prompt=(
                 "You are the FLINT Universal Trust Agent. Your mission is to provide verifiable "
                 "risk and compliance evaluations across multiple sectors including Finance and Healthcare. "
@@ -43,7 +46,7 @@ class UniversalPolicyAgent:
         """
         
         # Simulation fallback for development
-        if not os.getenv("GEMINI_API_KEY"):
+        if not os.getenv("GOOGLE_API_KEY"):
             return PolicyDecision(
                 decision="approve",
                 justification=f"Simulated approval for {sector}. Policy rules were analyzed (Audit mode).",

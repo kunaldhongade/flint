@@ -3,10 +3,10 @@ from pydantic import BaseModel
 from typing import Dict, Any, List
 import uvicorn
 import os
-from .agent import risk_agent, PortfolioInput
-from .universal_agent import universal_trust_agent
-from .chaos_agent import chaos_agent
-from .attestation import attestation_service
+from agent import risk_agent, PortfolioInput
+from universal_agent import universal_trust_agent
+from chaos_agent import chaos_agent
+from attestation import attestation_service
 
 app = FastAPI(title="FLINT Verifiable AI Trust Layer")
 
