@@ -6,6 +6,10 @@ import os
 from typing import Dict, Any
 from lib.flare_ai_kit.tee.attestation import VtpmAttestation
 from enclave_security import enclave_security
+from dotenv import load_dotenv
+
+# Ensure environment variables are loaded
+load_dotenv()
 
 class FlareAttestationService:
     """

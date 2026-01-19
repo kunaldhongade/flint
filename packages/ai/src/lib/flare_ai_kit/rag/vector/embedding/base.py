@@ -15,9 +15,9 @@ class BaseEmbedding(ABC):
     @abstractmethod
     def embed_content(
         self,
-        contents:Union[ str, list[str],]
-        title:Union[ str, None ]= None,
-        task_type:Union[ str, None ]= None,
+        contents: Union[str, list[str]],
+        title: Union[str, None] = None,
+        task_type: Union[str, None] = None,
     ) -> list[list[float]]:
         """
         Generates embeddings for the provided text content(s).

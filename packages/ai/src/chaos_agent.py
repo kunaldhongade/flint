@@ -48,6 +48,6 @@ class ChaosVerificationAgent:
             raise SecurityViolationError("Valid Google Gemini API key is required for execution. Fallback/Simulation is DISALLOWED.")
 
         result = await self.agent.run(prompt)
-        return result.data
+        return result.output
 
 chaos_agent = ChaosVerificationAgent()

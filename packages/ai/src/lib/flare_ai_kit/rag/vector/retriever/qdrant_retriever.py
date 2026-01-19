@@ -26,7 +26,8 @@ logger = structlog.get_logger(__name__)
 
 
 def convert_points_to_results(
-    points:Union[ list[ScoredPoint], list[Record], default_score]: float = 1.0
+    points: Union[list[ScoredPoint], list[Record]],
+    default_score: float = 1.0,
 ) -> list[SemanticSearchResult]:
     """
     Convert a list of Qdrant PointStruct objects to SemanticSearchResult instances.

@@ -29,7 +29,7 @@ def load_abi(abi_name: str) -> list[str]:
 
     """
     resource_path = f"{abi_name}.json"
-    package_name = "flare_ai_kit.abis"
+    package_name = "lib.flare_ai_kit.abis"
 
     try:
         ref = importlib.resources.files(package_name).joinpath(resource_path)

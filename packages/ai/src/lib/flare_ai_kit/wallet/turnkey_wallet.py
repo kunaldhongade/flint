@@ -73,9 +73,9 @@ class TurnkeyWallet(WalletInterface):
 
     def __init__(
         self,
-        settings:Union[ TurnkeySettings, None ]= None,
-        permission_engine:Union[ PermissionEngine, None ]= None,
-        tee_validator:Union[ VtpmValidation, None ]= None,
+        settings: Union[TurnkeySettings, None] = None,
+        permission_engine: Union[PermissionEngine, None] = None,
+        tee_validator: Union[VtpmValidation, None] = None,
     ) -> None:
         """
         Initialize TurnkeyWallet.
@@ -100,8 +100,8 @@ class TurnkeyWallet(WalletInterface):
 
     async def __aexit__(
         self,
-        exc_type:Union[ type[BaseException], None,]
-        exc_val:Union[ BaseException, None,]
+        exc_type: Union[type[BaseException], None],
+        exc_val: Union[BaseException, None],
         exc_tb: object,
     ) -> None:
         """Async context manager exit."""

@@ -50,9 +50,9 @@ class GeminiEmbedding(BaseEmbedding):
     @override
     def embed_content(
         self,
-        contents:Union[ str, list[str],]
-        title:Union[ str, None ]= None,
-        task_type:Union[ str, None ]= "RETRIEVAL_DOCUMENT",
+        contents: Union[str, list[str]],
+        title: Union[str, None] = None,
+        task_type: Union[str, None] = "RETRIEVAL_DOCUMENT",
     ) -> list[list[float]]:
         """
         Generates embeddings for the provided content(s) using configured Gemini model.
