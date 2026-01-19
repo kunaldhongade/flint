@@ -19,7 +19,7 @@ class AIService {
     asset: string,
     amount: string,
     availableOpportunities: YieldOpportunity[]
-  ): Promise<AIDecision> {
+  ): Promise<{ decision: AIDecision; attestation?: string }> {
     // Filter opportunities for the asset
     const relevantOpportunities = availableOpportunities.filter(
       (opp) => opp.asset === asset
@@ -115,7 +115,7 @@ class AIService {
         throw new Error("FATAL: Enclave Signature missing in final verification step");
     }
 
-    return decision;
+    return { decision, attestation: enclaveSignature };
   }
 
   /**

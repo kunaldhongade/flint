@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, List
 import uvicorn
 import os
+import traceback
 from agent import risk_agent
 from universal_agent import universal_trust_agent
 from chaos_agent import chaos_agent
@@ -59,6 +60,7 @@ async def consensus_decide(request: DecideRequest):
             attestation=attestation
         )
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/v1/verify-decision/{decision_id}")

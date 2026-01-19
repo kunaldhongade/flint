@@ -1,6 +1,7 @@
 import { AssetType, PortfolioPosition, UserPortfolio } from '@flint/shared';
 import { Request, Response, Router } from 'express';
 import { prisma } from '../utils/db';
+import { logger } from '../utils/logger';
 
 export const portfolioRouter = Router();
 
@@ -11,6 +12,7 @@ export const portfolioRouter = Router();
 portfolioRouter.get('/:userId', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
+    logger.info(`Fetching portfolio for user: ${userId}`);
     
     // Fetch user and portfolio including positions
     const portfolioData = await prisma.portfolio.findUnique({
@@ -49,6 +51,7 @@ portfolioRouter.get('/:userId', async (req: Request, res: Response) => {
 
     res.json(portfolio);
   } catch (error) {
+    logger.error('Error fetching portfolio:', error);
     res.status(500).json({ error: 'Failed to fetch portfolio', message: (error as Error).message });
   }
 });
@@ -61,6 +64,7 @@ portfolioRouter.post('/:userId/positions', async (req: Request, res: Response) =
   try {
     const { userId } = req.params;
     const positionData: PortfolioPosition = req.body;
+    logger.info(`Adding position for user: ${userId}`, { position: positionData });
 
     // Ensure user and portfolio exist
     let portfolio = await prisma.portfolio.findUnique({
@@ -101,6 +105,7 @@ portfolioRouter.post('/:userId/positions', async (req: Request, res: Response) =
 
     res.status(201).json({ message: 'Position added', position });
   } catch (error) {
+    logger.error('Error adding position:', error);
     res.status(500).json({ error: 'Failed to add position', message: (error as Error).message });
   }
 });

@@ -1,3 +1,4 @@
+console.log("Backend process starting...");
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -47,6 +48,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 // Start server
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
+    console.log(`Unbuffered log: FLINT Backend server running on port ${PORT}`);
     logger.info(`FLINT Backend server running on port ${PORT}`);
     
     // Initialize services
