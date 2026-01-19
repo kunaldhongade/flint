@@ -22,11 +22,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the source code
-COPY src/ ./src/
+COPY src/ .
 
 # Expose the API port
 EXPOSE 8080
 
 # Command to run the service
-# Note: Using uvicorn directly for production-like execution
-CMD ["python", "-m", "src.main"]
+CMD ["python", "main.py"]

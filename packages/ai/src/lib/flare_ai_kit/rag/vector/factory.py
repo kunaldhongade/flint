@@ -63,8 +63,8 @@ def create_vector_rag_pipeline(
         logger.error(msg)
         raise FlareAIKitError(msg)
 
-    if not agent_settings.gemini_api_key:
-        msg = "Gemini API key is not configured. Please set AGENT__GEMINI_API_KEY."
+    if not agent_settings.google_api_key:
+        msg = "Google API key is not configured. Please set GOOGLE_API_KEY."
         logger.error(msg)
         raise FlareAIKitError(msg)
 
@@ -72,7 +72,7 @@ def create_vector_rag_pipeline(
     try:
         # 1. Embedding Client
         embedding_client = GeminiEmbedding(
-            api_key=agent_settings.gemini_api_key.get_secret_value(),
+            api_key=agent_settings.google_api_key.get_secret_value(),
             model=vector_db_settings.embeddings_model,
             output_dimensionality=vector_db_settings.embeddings_output_dimensionality,
         )

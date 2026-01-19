@@ -17,7 +17,7 @@ This checklist outlines the steps required to transition FLINT from prototype to
 
 ## 3. API & Security
 - [ ] Secure `8080` and `3001` ports with mTLS or VPC-internal routing.
-- [ ] Rotate `GEMINI_API_KEY` and store in GCP Secret Manager.
+- [ ] Rotate `GOOGLE_API_KEY` and store in GCP Secret Manager.
 - [ ] Enable rate limiting on `/consensus-decide` endpoint.
 
 ## 4. Monitoring & Compliance

@@ -24,7 +24,7 @@ const metadata = {
 }
 
 // 3. Set the networks
-const networks = [flare, flareTestnet] as [any, ...any[]]
+const networks = [flareTestnet] as [any, ...any[]]
 
 // 4. Create Wagmi Adapter
 const wagmiAdapter = new WagmiAdapter({

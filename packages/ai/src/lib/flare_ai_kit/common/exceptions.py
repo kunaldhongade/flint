@@ -138,3 +138,8 @@ class A2AClientError(FlareAIKitError):
 # --- PDF Processing Errors ---
 class PdfPostingError(FlareAIKitError):
     """Error class concerned with onchain PDF data posting errors."""
+
+
+# --- Security & Policy Enforcement Errors ---
+class SecurityViolationError(FlareAIKitError):
+    """Raised when a security policy or model compliance rule is violated."""

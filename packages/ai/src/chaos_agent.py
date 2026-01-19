@@ -1,11 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any
-try:
-    from pydantic_ai import Agent
-except ImportError:
-    class Agent:
-        def __init__(self, *args, **kwargs): pass
-        async def run(self, *args, **kwargs): pass
+from pydantic_ai import Agent
+from lib.flare_ai_kit.common.exceptions import SecurityViolationError
 import os
 from dotenv import load_dotenv
 
@@ -48,12 +44,8 @@ class ChaosVerificationAgent:
         3. Adversarial data injection in the evaluation context.
         """
         
-        if not os.getenv("GOOGLE_API_KEY"):
-            return ChaosEvaluation(
-                is_robust=True,
-                stress_results=["Simulated market crash survived", "Data latency handled"],
-                adversarial_score=0.95
-            )
+        if not os.getenv("GOOGLE_API_KEY") or "dummy" in (os.getenv("GOOGLE_API_KEY") or ""):
+            raise SecurityViolationError("Valid Google Gemini API key is required for execution. Fallback/Simulation is DISALLOWED.")
 
         result = await self.agent.run(prompt)
         return result.output

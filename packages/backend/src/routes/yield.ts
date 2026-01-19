@@ -1,7 +1,8 @@
-import { Router, Request, Response } from 'express';
-import { YieldOpportunity, AssetType } from '@flint/shared';
-import { riskService } from '../services/risk';
+import { AssetType, YieldOpportunity } from '@flint/shared';
+import { Request, Response, Router } from 'express';
 import { ftsoService } from '../services/ftso';
+import { riskService } from '../services/risk';
+import { logger } from '../utils/logger';
 
 export const yieldRouter = Router();
 
@@ -11,6 +12,7 @@ export const yieldRouter = Router();
  */
 yieldRouter.get('/opportunities', async (req: Request, res: Response) => {
   try {
+    logger.info('Fetching all yield opportunities');
     // TODO: Fetch from actual protocols and databases
     // This is a placeholder with mock data
     const opportunities: YieldOpportunity[] = [
@@ -60,6 +62,7 @@ yieldRouter.get('/opportunities', async (req: Request, res: Response) => {
 
     res.json(opportunitiesWithRisk);
   } catch (error) {
+    logger.error('Error fetching yield opportunities:', error);
     res.status(500).json({ error: 'Failed to fetch yield opportunities', message: (error as Error).message });
   }
 });
@@ -71,6 +74,7 @@ yieldRouter.get('/opportunities', async (req: Request, res: Response) => {
 yieldRouter.get('/opportunities/:asset', async (req: Request, res: Response) => {
   try {
     const { asset } = req.params;
+    logger.info(`Fetching yield opportunities for asset: ${asset}`);
     
     // TODO: Filter opportunities by asset
     // For now, return all opportunities
@@ -79,6 +83,7 @@ yieldRouter.get('/opportunities/:asset', async (req: Request, res: Response) => 
     
     res.json(filtered);
   } catch (error) {
+    logger.error(`Error fetching yield opportunities for asset ${req.params.asset}:`, error);
     res.status(500).json({ error: 'Failed to fetch yield opportunities', message: (error as Error).message });
   }
 });
@@ -89,10 +94,12 @@ yieldRouter.get('/opportunities/:asset', async (req: Request, res: Response) => 
  */
 yieldRouter.get('/prices', async (req: Request, res: Response) => {
   try {
+    logger.info('Fetching FTSO prices');
     const prices = ftsoService.getAllPrices();
     const priceArray = Array.from(prices.values());
     res.json(priceArray);
   } catch (error) {
+    logger.error('Error fetching FTSO prices:', error);
     res.status(500).json({ error: 'Failed to fetch prices', message: (error as Error).message });
   }
 });
