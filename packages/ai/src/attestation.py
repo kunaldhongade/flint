@@ -14,7 +14,6 @@ class FlareAttestationService:
     """
 
     def __init__(self):
-    def __init__(self):
         # STAGING/PRODUCTION ENFORCEMENT:
         # Default now forces production. Simulation must be explicitly requested, and is NOT allowed for staging builds.
         self.mode = os.getenv("TEE_MODE", "production") 
@@ -39,10 +38,10 @@ class FlareAttestationService:
         # 1. Get the Enclave's Public Key Hash (Report Data)
         # This is the CRITICAL security binding. The TEE says "I attest that Key X is running inside me".
         report_data_hash = enclave_security.get_report_data()
+        print("Report Data: ",report_data_hash)
 
         # 2. Request official token from Flare AI Kit vTPM
         # We pass the report_data_hash as the nonce to bind it.
-        try:
         try:
             token = self.vtpm.get_token(nonces=[report_data_hash])
         except Exception as e:

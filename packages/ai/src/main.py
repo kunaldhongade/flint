@@ -1,14 +1,14 @@
-from . import mock_adk
+# from . import mock_adk
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, List
 import uvicorn
 import os
-from .agent import risk_agent
-from .universal_agent import universal_trust_agent
-from .chaos_agent import chaos_agent
-from .attestation import attestation_service
-from .consensus_engine import consensus_engine
+from agent import risk_agent
+from universal_agent import universal_trust_agent
+from chaos_agent import chaos_agent
+from attestation import attestation_service
+from consensus_engine import consensus_engine
 
 app = FastAPI(title="FLINT Verifiable AI Trust Layer")
 
@@ -44,10 +44,14 @@ async def consensus_decide(request: DecideRequest):
     """
     try:
         task = f"Evaluate strategy {request.strategy_name} for portfolio {request.portfolio}"
+        print("Task: ",task)
+        
         consensus_result = await consensus_engine.run_consensus(task)
+        print("Consensus Result: ",consensus_result)
         
         # Generate attestation for the consensus result
         attestation = attestation_service.generate_attestation(consensus_result)
+        print("Attestation: ",attestation)
         
         return DecideResponse(
             decision_id=attestation["quote"]["report_data"],

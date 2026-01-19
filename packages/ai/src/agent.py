@@ -7,7 +7,7 @@ except ImportError:
         def __init__(self, *args, **kwargs): pass
         async def run(self, *args, **kwargs): pass
     class RunContext: pass
-from .lib.flare_ai_kit.agent.ecosystem_tools import get_ftso_latest_price
+from lib.flare_ai_kit.agent.ecosystem_tools import get_ftso_latest_price
 import os
 from typing import Dict,Any
 from dotenv import load_dotenv
@@ -34,7 +34,7 @@ class RiskPolicyAgent:
         # In a real scenario, we'd use a specific model like 'google-gla:gemini-1.5-pro'
         # For the prototype/MVP, we'll use a mock agent or a simple LLM call if API key is present
         self.agent = Agent(
-            'google-gla:gemini-1.5-flash', # Defaulting to flash for speed/cost
+            'google-gla:gemini-2.5-flash', # Defaulting to flash for speed/cost
 
             output_type=StrategyEvaluation,
             system_prompt=(

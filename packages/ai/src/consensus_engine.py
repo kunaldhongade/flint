@@ -26,7 +26,7 @@ def calculate_model_cid():
     """Model Registry and Integrity System (MRIS) simulation."""
     # In production, this would be a hash of the container/model binary
     # Here we hash the core agent files to ensure code integrity
-    core_files = ["packages/ai/src/agent.py", "packages/ai/src/consensus_agents.py"]
+    core_files = ["./agent.py", "./consensus_agents.py"]
     hasher = hashlib.sha256()
     
     for file_path in core_files:
@@ -60,7 +60,7 @@ class ConsensusEngine:
         # Run agents in parallel
         tasks = [agent.run(task) for agent in self.agents.values()]
         agent_results = await asyncio.gather(*tasks)
-        results = [r.data for r in agent_results]
+        results = [r.output for r in agent_results]
 
         # Convert to Flare AI Kit Predictions
         print("DEBUG: Creating predictions")

@@ -16,7 +16,7 @@ class AgentDecision(BaseModel):
 
 def create_strategy_agent(agent_id: str, strategy_prompt: str) -> Agent:
     return Agent(
-        'google-gla:gemini-1.5-flash',
+        'google-gla:gemini-2.5-flash',
 
         output_type=AgentDecision,
         system_prompt=(
