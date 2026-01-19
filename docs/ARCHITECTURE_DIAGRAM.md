@@ -114,12 +114,12 @@ graph TB
     
     RiskAgent -->|"Gemini 2.5 Flash"| Gemini
     
-    style User fill:#FFD700,stroke:#333,stroke-width:2px
+    style User fill:#1565C0,stroke:#333,stroke-width:2px,color:#fff
     style TEE fill:#2E7D32,stroke:#333,stroke-width:2px,color:#fff
     style AI fill:#1976D2,stroke:#333,stroke-width:2px,color:#fff
     style FlareNet fill:#7B1FA2,stroke:#333,stroke-width:2px,color:#fff
-    style FTSO fill:#F57C00,stroke:#333,stroke-width:2px
-    style FDC fill:#F57C00,stroke:#333,stroke-width:2px
+    style FTSO fill:#E65100,stroke:#333,stroke-width:2px,color:#fff
+    style FDC fill:#E65100,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 ---
@@ -310,9 +310,9 @@ graph TB
     Logger --> Portfolio
     Logger --> Reputation
     
-    style Kit fill:#FFD700,stroke:#333,stroke-width:2px
-    style FTSO fill:#F57C00,stroke:#333,stroke-width:2px
-    style FDC fill:#F57C00,stroke:#333,stroke-width:2px
+    style Kit fill:#0277BD,stroke:#333,stroke-width:2px,color:#fff
+    style FTSO fill:#E65100,stroke:#333,stroke-width:2px,color:#fff
+    style FDC fill:#E65100,stroke:#333,stroke-width:2px,color:#fff
     style GCP fill:#2E7D32,stroke:#333,stroke-width:2px,color:#fff
     style Logger fill:#7B1FA2,stroke:#333,stroke-width:2px,color:#fff
 ```
@@ -510,7 +510,223 @@ graph TB
     style L4 fill:#3776AB,stroke:#333,stroke-width:2px,color:#fff
     style L6 fill:#2E7D32,stroke:#333,stroke-width:2px,color:#fff
     style L7 fill:#7B1FA2,stroke:#333,stroke-width:2px,color:#fff
-    style L8 fill:#FFD700,stroke:#333,stroke-width:2px
+    style L8 fill:#00838F,stroke:#333,stroke-width:2px,color:#fff
+```
+
+---
+
+---
+
+## 8. Complete Decision Logging & Smart Contract Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as 👤 User
+    participant Frontend as ⚛️ Frontend
+    participant Backend as 🔧 Backend API
+    participant AIService as 🤖 AI Service (TS)
+    participant FTSO as 📊 FTSO Service
+    participant FDC as 🔗 FDC Service
+    participant Risk as ⚖️ Risk Service
+    participant FastAPI as 🐍 FastAPI (Python)
+    participant Consensus as 🤝 Consensus Engine
+    participant TEE as 🛡️ TEE + vTPM
+    participant Blockchain as ⛓️ Blockchain Service
+    participant Logger as 📜 DecisionLogger
+    participant Verifier as ✅ DecisionVerifier
+    participant FlareNet as ⛓️ Flare Network
+
+    User->>Frontend: Request: Allocate 100 FXRP
+    Frontend->>Backend: POST /api/decision/allocate<br/>{userId, asset: "FXRP", amount: "100"}
+    
+    Backend->>AIService: generateAllocationDecision()
+    
+    Note over AIService: Step 1: Gather Market Data
+    AIService->>FTSO: getPrice("FXRP")
+    FTSO-->>AIService: {price: 0.52, timestamp, confidence}
+    
+    AIService->>FDC: getLatestAttestations("FXRP", 5)
+    FDC-->>AIService: [attestation1, attestation2, ...]
+    
+    AIService->>Risk: calculateRiskScore(opportunity)
+    Risk-->>AIService: {overall: 35, protocol: 20, liquidity: 15}
+    
+    Note over AIService: Step 2: Create Initial Decision
+    AIService->>AIService: createDecision()<br/>{action: "ALLOCATE", asset: "FXRP"}
+    
+    Note over AIService: Step 3: Request TEE Consensus
+    AIService->>FastAPI: POST /consensus-decide<br/>{strategy_name, portfolio, market_data}
+    
+    FastAPI->>Consensus: run_consensus(task)
+    
+    Consensus->>Consensus: Execute Risk Agent
+    Consensus->>Consensus: Execute Universal Agent
+    Consensus->>Consensus: Execute Chaos Agent
+    
+    Note over Consensus: Weighted Aggregation
+    Consensus->>Consensus: Aggregate Results<br/>(Weights: 0.4, 0.3, 0.3)
+    
+    Consensus->>TEE: Request Attestation
+    
+    Note over TEE: TEE Security Flow
+    TEE->>TEE: Generate Enclave Key Pair<br/>(RSA 2048-bit)
+    TEE->>TEE: Create Report Data<br/>(SHA256 of Public Key)
+    TEE->>TEE: Request vTPM Token<br/>(nonce = report_data)
+    TEE->>TEE: Sign Decision Hash<br/>(Private Key)
+    
+    TEE-->>Consensus: Attestation Package<br/>{token, signature, public_key}
+    
+    Consensus-->>FastAPI: {decision_id, decision, attestation}
+    FastAPI-->>AIService: Response with Signature
+    
+    Note over AIService: Step 4: Extract Enclave Signature
+    AIService->>AIService: enclaveSignature = attestation.signature
+    AIService->>AIService: decision.onChainHash = decision_id
+    
+    Note over AIService: Step 5: Log to Blockchain
+    AIService->>Blockchain: logDecisionOnChain(decision, signature)
+    
+    Note over Blockchain: Prepare Transaction
+    Blockchain->>Blockchain: Convert ID to bytes32
+    Blockchain->>Blockchain: Map action to uint8
+    Blockchain->>Blockchain: Parse amount to Wei
+    
+    Blockchain->>Logger: logDecision(<br/>  id, user, action, asset, amount,<br/>  fromProtocol, toProtocol, confidence,<br/>  reasons, dataSources, alternatives,<br/>  onChainHash, modelCid, xaiCid,<br/>  signature<br/>)
+    
+    Note over Logger: Smart Contract Verification
+    Logger->>Logger: Check decision doesn't exist
+    Logger->>Logger: Validate action (0-3)
+    Logger->>Logger: Validate confidence (0-10000)
+    
+    Logger->>Logger: Create Decision Hash<br/>keccak256(DOMAIN_SEPARATOR, params)
+    
+    Logger->>Verifier: verifyDecision(decisionHash, signature)
+    
+    Note over Verifier: Signature Verification
+    Verifier->>Verifier: ECDSA Recover Signer
+    Verifier->>Verifier: Check Enclave Registry
+    
+    alt Enclave is Trusted
+        Verifier-->>Logger: ✅ true (Verified)
+        
+        Logger->>Logger: Store Decision Struct
+        Logger->>Logger: Update userDecisions mapping
+        Logger->>Logger: Append to allDecisions array
+        
+        Logger->>FlareNet: Emit DecisionLogged Event
+        
+        FlareNet-->>Logger: Transaction Mined
+        Logger-->>Blockchain: Transaction Receipt
+        
+        Blockchain-->>AIService: Transaction Hash
+        AIService-->>Backend: Decision + TX Hash
+        Backend-->>Frontend: {decision, explanation, txHash}
+        Frontend-->>User: ✅ Decision Logged Successfully
+        
+    else Enclave Not Trusted
+        Verifier-->>Logger: ❌ false (Unauthorized)
+        Logger->>Logger: revert("Unauthorized Enclave")
+        Logger-->>Blockchain: Transaction Reverted
+        Blockchain-->>AIService: Error
+        AIService-->>Backend: Error
+        Backend-->>Frontend: Error Response
+        Frontend-->>User: ❌ Security Violation
+    end
+```
+
+---
+
+## 9. Smart Contract Architecture
+
+```mermaid
+graph TB
+    subgraph "Backend Services"
+        BlockchainSvc["⛓️ Blockchain Service<br/>(blockchain.ts)"]
+    end
+
+    subgraph "Smart Contracts on Flare Network"
+        DecisionLogger["📜 DecisionLogger.sol<br/>(UUPS Upgradeable)"]
+        DecisionVerifier["✅ DecisionVerifier.sol"]
+        EnclaveRegistry["📋 Enclave Registry<br/>(trustedEnclaves mapping)"]
+        PortfolioMgr["💼 PortfolioManager.sol"]
+        ReputationReg["⭐ ReputationRegistry.sol"]
+    end
+
+    subgraph "On-Chain Storage"
+        Decisions["📚 decisions mapping<br/>(bytes32 => Decision)"]
+        UserDecisions["👤 userDecisions mapping<br/>(address => bytes32[])"]
+        AllDecisions["📋 allDecisions array<br/>(bytes32[])"]
+    end
+
+    subgraph "Events"
+        DecisionLogged["📢 DecisionLogged Event<br/>{id, user, action, asset, amount}"]
+        EnclaveRegistered["🔐 EnclaveRegistered Event<br/>{publicKey, reportData}"]
+    end
+
+    BlockchainSvc -->|"logDecision() tx"| DecisionLogger
+    
+    DecisionLogger -->|"verifyDecision(hash, sig)"| DecisionVerifier
+    DecisionVerifier -->|"Check signer"| EnclaveRegistry
+    
+    EnclaveRegistry -->|"✅ Verified"| DecisionVerifier
+    DecisionVerifier -->|"return true"| DecisionLogger
+    
+    DecisionLogger -->|"Store"| Decisions
+    DecisionLogger -->|"Update"| UserDecisions
+    DecisionLogger -->|"Append"| AllDecisions
+    
+    DecisionLogger -->|"Emit"| DecisionLogged
+    DecisionVerifier -->|"Emit (on register)"| EnclaveRegistered
+    
+    DecisionLogger -.->|"Future integration"| PortfolioMgr
+    DecisionLogger -.->|"Future integration"| ReputationReg
+    
+    style DecisionLogger fill:#7B1FA2,stroke:#333,stroke-width:3px,color:#fff
+    style DecisionVerifier fill:#2E7D32,stroke:#333,stroke-width:3px,color:#fff
+    style EnclaveRegistry fill:#D32F2F,stroke:#333,stroke-width:3px,color:#fff
+    style Decisions fill:#F57C00,stroke:#333,stroke-width:2px
+```
+
+---
+
+## 10. Decision Data Structure Flow
+
+```mermaid
+graph LR
+    subgraph "TypeScript (Backend)"
+        TSDecision["AIDecision<br/>{<br/>  id: string<br/>  action: 'ALLOCATE'<br/>  asset: 'FXRP'<br/>  amount: '100'<br/>  confidenceScore: 8500<br/>  reasons: string[]<br/>  dataSources: string[]<br/>  onChainHash: string<br/>  modelCid: string<br/>}"]
+    end
+
+    subgraph "Conversion Layer"
+        Convert["Blockchain Service<br/>blockchain.ts"]
+    end
+
+    subgraph "Solidity (Smart Contract)"
+        SolDecision["Decision struct<br/>{<br/>  bytes32 id<br/>  uint8 action (0)<br/>  address asset<br/>  uint256 amount (Wei)<br/>  uint256 confidenceScore<br/>  string reasons (JSON)<br/>  string dataSources (JSON)<br/>  bytes32 onChainHash<br/>  string modelCid<br/>}"]
+    end
+
+    subgraph "Transformations"
+        T1["ethers.id(id)<br/>→ bytes32"]
+        T2["'ALLOCATE' → 0<br/>'REALLOCATE' → 1"]
+        T3["ethers.parseEther()<br/>→ Wei"]
+        T4["JSON.stringify()<br/>→ string"]
+    end
+
+    TSDecision --> Convert
+    Convert --> T1
+    Convert --> T2
+    Convert --> T3
+    Convert --> T4
+    
+    T1 --> SolDecision
+    T2 --> SolDecision
+    T3 --> SolDecision
+    T4 --> SolDecision
+    
+    style TSDecision fill:#61DAFB,stroke:#333,stroke-width:2px
+    style SolDecision fill:#7B1FA2,stroke:#333,stroke-width:2px,color:#fff
+    style Convert fill:#F57C00,stroke:#333,stroke-width:2px
 ```
 
 ---
@@ -526,12 +742,17 @@ These diagrams visualize the complete FLINT architecture, showing:
 5. **Security Model** - TEE execution and on-chain verification
 6. **FTSO Data Flow** - Real-time price feed integration
 7. **Technology Stack** - Layer-by-layer technology breakdown
+8. **Decision Logging Flow** - Complete end-to-end flow with smart contract verification
+9. **Smart Contract Architecture** - Contract interactions and data storage
+10. **Data Structure Mapping** - TypeScript to Solidity conversion
 
 **Key Highlights:**
 - ✅ Verifiable AI via TEE (GCP Confidential Space)
 - ✅ Multi-agent consensus prevents bias
-- ✅ On-chain audit trail (DecisionLogger)
+- ✅ On-chain audit trail (DecisionLogger with signature verification)
 - ✅ Real-time FTSO price feeds
 - ✅ FDC cross-chain verification
 - ✅ Flare AI Kit deep integration
-- ✅ Institutional-grade security (vTPM attestation)
+- ✅ Institutional-grade security (vTPM attestation + smart contract verification)
+- ✅ Fail-close security (rejects decisions without valid enclave signatures)
+- ✅ Immutable storage with event logging for efficient querying
