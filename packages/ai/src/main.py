@@ -1,4 +1,4 @@
-# from . import mock_adk
+import mock_adk
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, List

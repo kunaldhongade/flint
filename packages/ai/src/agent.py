@@ -1,13 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
-try:
-    from pydantic_ai import Agent, RunContext
-except ImportError:
-    class Agent:
-        def __init__(self, *args, **kwargs): pass
-        async def run(self, *args, **kwargs): pass
-    class RunContext: pass
+from pydantic_ai import Agent, RunContext
 from lib.flare_ai_kit.agent.ecosystem_tools import get_ftso_latest_price
+from lib.flare_ai_kit.common.exceptions import SecurityViolationError
 import os
 from typing import Dict,Any
 from dotenv import load_dotenv
@@ -31,7 +26,7 @@ class RiskPolicyAgent:
     Now integrated with Flare AI Kit ecosystem tools.
     """
     def __init__(self):
-        # In a real scenario, we'd use a specific model like 'google-gla:gemini-1.5-pro'
+        # In a real scenario, we'd use a specific model like 'google-gla:gemini-2.5-pro'
         # For the prototype/MVP, we'll use a mock agent or a simple LLM call if API key is present
         self.agent = Agent(
             'google-gla:gemini-2.5-flash', # Defaulting to flash for speed/cost
@@ -69,15 +64,8 @@ class RiskPolicyAgent:
         
         # In a real run without API key, this would fail. 
         # For M1/M2 demo, we can use a fallback or mock if needed.
-        if not os.getenv("GOOGLE_API_KEY") or "dummy" in os.getenv("GOOGLE_API_KEY"):
-            return StrategyEvaluation(
-                strategy_name=strategy,
-                risk_level="Low",
-                action="approve",
-                justification="Simulated approval. FTSO price verified via TEE.",
-                confidence=0.95,
-                asset_prices={"FLR/USD": flr_price}
-            )
+        if not os.getenv("GOOGLE_API_KEY") or "dummy" in (os.getenv("GOOGLE_API_KEY") or ""):
+            raise SecurityViolationError("Valid Google Gemini API key is required for execution. Fallback/Simulation is DISALLOWED.")
 
         result = await self.agent.run(prompt)
         # Verify result and add FTSO data

@@ -13,15 +13,12 @@ class AgentSettings(BaseSettings):
         env_file=".env",
         extra="ignore",
     )
-    gemini_api_key:Union[ SecretStr, None ]= Field(
+    google_api_key:Union[ SecretStr, None ]= Field(
         default=None,
+        alias="GOOGLE_API_KEY",
         description="API key for using Google Gemini (https://aistudio.google.com/app/apikey).",
     )
     gemini_model: str = Field(
         default="gemini-2.5-flash",
         description="Gemini model to use (e.g. gemini-2.5-flash, gemini-2.5-pro)",
-    )
-    openrouter_api_key:Union[ SecretStr, None ]= Field(
-        default=None,
-        description="API key for OpenRouter.",
     )

@@ -58,22 +58,46 @@ contract FeeManager is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reent
     }
 
     /**
-     * @notice Record user deposit
+     * @notice Record user deposit and take custody of tokens.
      */
-    function recordDeposit(address user, address asset, uint256 amount, uint256 usdValue) external onlyOwner {
-        userBalances[user][asset] += amount;
+    function recordDeposit(address user, address asset, uint256 amount, uint256 usdValue) external onlyOwner nonReentrant {
+        require(user != address(0), "FeeManager: Invalid user");
+        require(asset != address(0), "FeeManager: Invalid asset");
+        require(amount > 0, "FeeManager: Amount must be > 0");
+
+        uint256 balanceBefore = IERC20(asset).balanceOf(address(this));
+        IERC20(asset).safeTransferFrom(user, address(this), amount);
+        uint256 balanceAfter = IERC20(asset).balanceOf(address(this));
+
+        uint256 actualAmount = balanceAfter - balanceBefore;
+        require(actualAmount > 0, "FeeManager: No tokens received");
+
+        userBalances[user][asset] += actualAmount;
+        // Adjust USD value proportionally if FOT occurred? 
+        // Ideally yes, but oracle provides USD value of *attempted* amount usually.
+        // For safety, we keep implicit 1:1 assumption for now, or just credit the balance.
+        // Strictly speaking, we should adjust usdValue too: usdValue = usdValue * actualAmount / amount
+        // But let's stick to safe crediting first.
+        if (amount > actualAmount) {
+             usdValue = (usdValue * actualAmount) / amount;
+        }
         userEntryValue[user][asset] += usdValue;
+        
         if (lastFeeTimestamp[user][asset] == 0) {
             lastFeeTimestamp[user][asset] = block.timestamp;
         }
     }
 
     /**
-     * @notice Record user withdrawal
+     * @notice Record user withdrawal and return tokens.
      */
-    function recordWithdrawal(address user, address asset, uint256 amount) external onlyOwner {
+    function recordWithdrawal(address user, address asset, uint256 amount) external onlyOwner nonReentrant {
         require(userBalances[user][asset] >= amount, "FeeManager: insufficient balance");
+        
         userBalances[user][asset] -= amount;
+
+        // Fixed: Actually return the tokens to the user
+        IERC20(asset).safeTransfer(user, amount);
     }
 
     /**

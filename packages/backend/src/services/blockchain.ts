@@ -1,5 +1,7 @@
 import { AIDecision } from '@flint/shared';
 import { ethers } from 'ethers';
+import fs from 'fs';
+import path from 'path';
 import { logger } from '../utils/logger';
 
 /**
@@ -11,21 +13,29 @@ export class BlockchainService {
   private wallet: ethers.Wallet;
   private loggerContract: ethers.Contract;
 
-  // DecisionLogger ABI (Fragment for the methods we use)
-  private readonly ABI = [
-    "function logDecision(bytes32 id, address user, uint8 action, address asset, uint256 amount, address fromProtocol, address toProtocol, uint256 confidenceScore, string memory reasons, string memory dataSources, string memory alternatives, bytes32 onChainHash, string memory modelCid, string memory xaiCid) external",
-    "function getDecisions(uint256 offset, uint256 limit) external view returns (bytes32[] memory)",
-    "function getDecision(bytes32 id) external view returns (tuple(bytes32 id, uint256 timestamp, uint8 action, address user, address asset, uint256 amount, address fromProtocol, address toProtocol, uint256 confidenceScore, string reasons, string dataSources, string alternatives, bytes32 onChainHash, string modelCid, string xaiCid))"
-  ];
-
   constructor() {
     const rpcUrl = process.env.FLARE_RPC_URL || 'https://coston2-api.flare.network/ext/C/rpc';
     const privateKey = process.env.PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'; // Default Hardhat #1
-    const contractAddress = process.env.DECISION_LOGGER_ADDRESS || '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+    const contractAddress = process.env.DECISION_LOGGER_ADDRESS || '0x467193cdd01875451d57FC333643a4D2E991Da2f';
 
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
     this.wallet = new ethers.Wallet(privateKey, this.provider);
-    this.loggerContract = new ethers.Contract(contractAddress, this.ABI, this.wallet);
+
+    // Load real ABI from shared package
+    const artifactPath = path.resolve(__dirname, '../../../shared/src/abi/DecisionLogger.json');
+    let abi;
+    try {
+        const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+        abi = artifact.abi;
+        logger.info(`Loaded DecisionLogger ABI from ${artifactPath}`);
+    } catch (e) {
+        logger.error(`Failed to load DecisionLogger artifact from ${artifactPath}, falling back to minimal ABI. Error: ${e}`);
+        // Fallback or throw? User said "dont use dummy abi". But if file missing (e.g. docker), we might crash.
+        // For staging, we throw to enforce correctness.
+        throw new Error("Failed to load DecisionLogger ABI: " + e);
+    }
+    
+    this.loggerContract = new ethers.Contract(contractAddress, abi, this.wallet);
   }
 
   /**
