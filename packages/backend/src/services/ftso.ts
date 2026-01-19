@@ -15,7 +15,7 @@ class FTSOService {
 
   // FTSO Registry Address (Flare Mainnet)
   private readonly FTSO_REGISTRY_ADDRESS = process.env.FTSO_REGISTRY_ADDRESS || '0xa08c8E18e2F9F0AD937d8C3b24c5F0B5c3f3F5B0';
-  private readonly FLARE_RPC_URL = process.env.FLARE_RPC_URL || 'https://flare-api.flare.network/ext/bc/C/rpc';
+  private readonly FLARE_RPC_URL = process.env.FLARE_RPC_URL || 'https://coston2-api.flare.network/ext/bc/C/rpc';
 
   // Supported symbols
   private readonly SYMBOLS = ['BTC', 'XRP', 'DOGE', 'FLR', 'USD'];

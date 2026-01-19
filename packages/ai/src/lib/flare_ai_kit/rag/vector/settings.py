@@ -85,7 +85,6 @@ class VectorDbSettings(BaseSettings):
         description="Embedding model name (e.g., 'gemini-embedding-exp-03-07').",
         examples=[
             "gemini-embedding-exp-03-07",
-            "text-embedding-004",
         ],
     )
     embeddings_output_dimensionality:Union[ PositiveInt, None ]= Field(

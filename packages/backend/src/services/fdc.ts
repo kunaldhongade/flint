@@ -54,7 +54,7 @@ class FDCService {
       // Fail-close handled by downstream consumers checking for empty/missing attestations
     }
   }
-  }
+
 
   /**
    * Fetch attestations from FDC API

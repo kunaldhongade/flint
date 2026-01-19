@@ -23,6 +23,7 @@ RUN npm run build
 
 # Build backend package
 WORKDIR /app/packages/backend
+RUN npx prisma generate
 RUN npm run build
 
 # Production stage
@@ -39,6 +40,7 @@ COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
 COPY --from=builder /app/packages/backend/package.json ./packages/backend/
+COPY --from=builder /app/packages/shared/src/abi ./packages/shared/src/abi
 
 WORKDIR /app/packages/backend
 

@@ -1,11 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
-try:
-    from pydantic_ai import Agent
-except ImportError:
-    class Agent:
-        def __init__(self, *args, **kwargs): pass
-        async def run(self, *args, **kwargs): pass
+# Fail loud if dependency is missing
+from pydantic_ai import Agent
 
 class AgentDecision(BaseModel):
     agent_id: str
