@@ -109,9 +109,9 @@ class DataAvailabilityLayer(Flare):
 
     async def __aexit__(
         self,
-        exc_type:Union[ type[BaseException], None,]
-        exc_val:Union[ BaseException, None,]
-        exc_tb:Union[ TracebackType, None,]
+        exc_type: Union[type[BaseException], None],
+        exc_val: Union[BaseException, None],
+        exc_tb: Union[TracebackType, None],
     ) -> None:
         """Async context manager exit."""
         await self.close()

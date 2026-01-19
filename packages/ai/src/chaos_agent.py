@@ -56,6 +56,6 @@ class ChaosVerificationAgent:
             )
 
         result = await self.agent.run(prompt)
-        return result.data
+        return result.output
 
 chaos_agent = ChaosVerificationAgent()

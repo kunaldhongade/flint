@@ -81,8 +81,12 @@ async def decide(request: DecideRequest):
             request.portfolio, 
             request.market_data
         )
+        print("Decision Result: ",decision_result)
+        
         decision_dict = decision_result.model_dump()
         attestation = attestation_service.generate_attestation(decision_dict)
+        
+        print("Attestation: ",attestation)
         return DecideResponse(
             decision_id=attestation["quote"]["report_data"],
             decision=decision_dict,

@@ -81,7 +81,7 @@ class RiskPolicyAgent:
 
         result = await self.agent.run(prompt)
         # Verify result and add FTSO data
-        result.data.asset_prices["FLR/USD"] = flr_price
-        return result.data
+        result.output.asset_prices["FLR/USD"] = flr_price
+        return result.output
 
 risk_agent = RiskPolicyAgent()

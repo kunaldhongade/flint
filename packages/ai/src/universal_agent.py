@@ -60,7 +60,7 @@ class UniversalPolicyAgent:
             )
         else:
             result = await self.agent.run(prompt)
-            decision = result.data
+            decision = result.output
 
         # Calculate ChaosChain Reputation Hash (ERC-8004 Pattern)
         # This hash binds the input context and the output decision for audit trails.
