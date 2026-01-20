@@ -9,7 +9,7 @@ import "./DecisionVerifier.sol";
 /**
  * @title DecisionLogger
  * @notice Immutable on-chain storage for AI decision logs with full audit trail.
- * Now enforced by DecisionVerifier with Domain Separation.
+ * Hardened to ensure all metadata is integrity-protected by Enclave signatures.
  */
 contract DecisionLogger is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     DecisionVerifier public verifier;
@@ -58,25 +58,27 @@ contract DecisionLogger is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         __UUPSUpgradeable_init();
         verifier = DecisionVerifier(_verifier);
         
-        DOMAIN_SEPARATOR = keccak256(abi.encode(
-            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-            keccak256(bytes("FLINT_DECISION_LOGGER")),
-            keccak256(bytes("1")),
-            block.chainid,
-            address(this)
-        ));
+        _updateDomainSeparator();
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
+    /**
+     * @notice Governance sets the trusted Decision Verifier.
+     */
     function setVerifier(address _verifier) external onlyOwner {
+        require(_verifier != address(0), "DecisionLogger: Invalid verifier");
         verifier = DecisionVerifier(_verifier);
     }
 
     /**
      * @notice Log an AI decision on-chain.
      * MUST be signed by a Verified Enclave.
+     * Hardened Fix: All parameters are now part of the signed hash.
      */
+    // EIP-712 TypeHash for Decision
+    bytes32 private constant DECISION_TYPEHASH = keccak256("Decision(bytes32 id,address user,uint8 action,address asset,uint256 amount,address fromProtocol,address toProtocol,uint256 confidenceScore,bytes32 reasonsHash,bytes32 dataSourcesHash,bytes32 alternativesHash,bytes32 onChainHash,bytes32 modelCidHash,bytes32 xaiCidHash)");
+
     function logDecision(
         bytes32 id,
         address user,
@@ -92,21 +94,38 @@ contract DecisionLogger is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         bytes32 onChainHash,
         string memory modelCid,
         string memory xaiCid,
-        bytes memory signature // New: Signature from Enclave
+        bytes memory signature 
     ) external {
         require(decisions[id].timestamp == 0, "DecisionLogger: decision already exists");
+        require(user != address(0), "DecisionLogger: Invalid user");
         require(action <= 3, "DecisionLogger: invalid action");
         require(confidenceScore <= 10000, "DecisionLogger: invalid confidence score");
 
-        // 1. Reconstruct the hash that was signed
-        // We hash the core decision parameters with DOMAIN_SEPARATOR to prevent replay
-        bytes32 decisionHash = keccak256(abi.encodePacked(
-            DOMAIN_SEPARATOR,
-            id, user, action, asset, amount, confidenceScore, onChainHash
+        // 1. Comprehensive Data Hashing: 
+        // We use abi.encode to prevent collisions and include ALL fields to prevent tampering.
+        // Hashing dynamic strings (reasons, dataSources, etc.) is mandatory for integrity.
+        bytes32 structHash = keccak256(abi.encode(
+            DECISION_TYPEHASH,
+            id,
+            user,
+            action,
+            asset,
+            amount,
+            fromProtocol,
+            toProtocol,
+            confidenceScore,
+            keccak256(bytes(reasons)),
+            keccak256(bytes(dataSources)),
+            keccak256(bytes(alternatives)),
+            onChainHash,
+            keccak256(bytes(modelCid)),
+            keccak256(bytes(xaiCid))
         ));
 
-        // 2. Verify: Unknown enclaves cannot log data
-        require(verifier.verifyDecision(decisionHash, signature), "DecisionLogger: Unauthorized Enclave Signature");
+        // 2. Verify: Any change to any parameter (even CID or Reasons) will invalidate the signature.
+        // Also triggers relay protection inside DecisionVerifier.
+        // Verifier will compute digest using its own DOMAIN_SEPARATOR.
+        require(verifier.verifyDecision(structHash, signature), "DecisionLogger: Unauthorized or Replayed Signature");
 
         Decision memory decision = Decision({
             id: id,
@@ -133,7 +152,17 @@ contract DecisionLogger is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         emit DecisionLogged(id, user, action, asset, amount, confidenceScore);
     }
 
-    // View functions (unchanged logic)
+    function _updateDomainSeparator() internal {
+        DOMAIN_SEPARATOR = keccak256(abi.encode(
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+            keccak256(bytes("FLINT_DECISION_LOGGER")),
+            keccak256(bytes("1")),
+            block.chainid,
+            address(this)
+        ));
+    }
+
+    // View functions 
     
     function getDecision(bytes32 id) external view returns (Decision memory) {
         require(decisions[id].timestamp != 0, "DecisionLogger: decision not found");

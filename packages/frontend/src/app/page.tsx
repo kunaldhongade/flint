@@ -1,8 +1,11 @@
 'use client'
 
+
+import { AgentSwarm } from '@/components/AgentSwarm'
 import { DecisionLogs } from '@/components/DecisionLogs'
 import { PortfolioTracker } from '@/components/PortfolioTracker'
 import { RiskScoring } from '@/components/RiskScoring'
+import { TrustDashboard } from '@/components/TrustDashboard'
 import { WalletConnect } from '@/components/WalletConnect'
 import { YieldDashboard } from '@/components/YieldDashboard'
 import { UserPortfolio, YieldOpportunity } from '@flint/shared'
@@ -11,13 +14,13 @@ import { useEffect, useState } from 'react'
 export default function Home() {
   const [opportunities, setOpportunities] = useState<YieldOpportunity[]>([])
   const [portfolio, setPortfolio] = useState<UserPortfolio | null>(null)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'portfolio' | 'risk' | 'decisions'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'overview' | 'swarm' | 'audit' | 'logs'>('overview')
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
     const headers = {
-      'x-api-key': 'flint-staging-key-123',
+      'x-api-key': process.env.NEXT_PUBLIC_API_KEY || 'flint-staging-key-123',
       'Content-Type': 'application/json'
     }
 
@@ -48,72 +51,80 @@ export default function Home() {
   }, [])
 
   return (
-    <main className="min-h-screen p-8">
+    <main className="dark min-h-screen bg-gray-900 text-gray-100 p-4 md:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <header className="mb-8 flex justify-between items-start">
-          <div>
-            <h1 className="text-4xl font-bold text-flare-primary mb-2">
-              FLINT
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400">
-              Flare Intelligence Network for Trust
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-500">
-              Transparent, auditable, and scalable infrastructure for DeFi yield optimization
-            </p>
+        <header className="mb-8 flex justify-between items-center border-b border-gray-800 pb-6">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 bg-flare-primary rounded-lg flex items-center justify-center shadow-lg shadow-pink-500/20">
+              <span className="text-2xl font-bold text-white">F</span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white tracking-tight">
+                FLINT <span className="text-gray-500 font-normal">| AI Trust Layer</span>
+              </h1>
+              <p className="text-sm text-gray-400">
+                Verifiable Intelligence Network secured by Flare
+              </p>
+            </div>
           </div>
           <WalletConnect />
         </header>
 
         {/* Navigation Tabs */}
-        <nav className="mb-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex space-x-4">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`py-2 px-4 border-b-2 ${activeTab === 'dashboard'
-                ? 'border-flare-primary text-flare-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              Yield Dashboard
-            </button>
-            <button
-              onClick={() => setActiveTab('portfolio')}
-              className={`py-2 px-4 border-b-2 ${activeTab === 'portfolio'
-                ? 'border-flare-primary text-flare-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              Portfolio
-            </button>
-            <button
-              onClick={() => setActiveTab('risk')}
-              className={`py-2 px-4 border-b-2 ${activeTab === 'risk'
-                ? 'border-flare-primary text-flare-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              Risk Scoring
-            </button>
-            <button
-              onClick={() => setActiveTab('decisions')}
-              className={`py-2 px-4 border-b-2 ${activeTab === 'decisions'
-                ? 'border-flare-primary text-flare-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              Decision Logs
-            </button>
+        <nav className="mb-8">
+          <div className="flex space-x-2 bg-gray-800 p-1 rounded-lg inline-flex">
+            {[
+              { id: 'overview', label: 'Trust Dashboard' },
+              { id: 'swarm', label: 'Swarm Intelligence' },
+              { id: 'audit', label: 'Live Audit' },
+              { id: 'logs', label: 'Decision Logs' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-2 px-6 rounded-md text-sm font-medium transition-all ${activeTab === tab.id
+                  ? 'bg-gray-700 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </nav>
 
         {/* Content */}
-        <div className="mt-6">
-          {activeTab === 'dashboard' && <YieldDashboard opportunities={opportunities} />}
-          {activeTab === 'portfolio' && <PortfolioTracker portfolio={portfolio} />}
-          {activeTab === 'risk' && <RiskScoring opportunities={opportunities} />}
-          {activeTab === 'decisions' && <DecisionLogs />}
+        <div className="min-h-[600px]">
+          {activeTab === 'overview' && (
+            <div className="space-y-8 animate-fade-in">
+              <TrustDashboard />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-lg font-bold mb-4">Risk Models</h3>
+                  <RiskScoring opportunities={opportunities} />
+                </div>
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-lg font-bold mb-4">Portfolio State</h3>
+                  <PortfolioTracker portfolio={portfolio} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'swarm' && <AgentSwarm />}
+
+          {activeTab === 'audit' && (
+            <div className="animate-fade-in">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-2">Live Execution Audit</h2>
+                <p className="text-gray-400">Trigger real-time strategies and watch the Trust Layer verify them.</p>
+              </div>
+              <YieldDashboard opportunities={opportunities} />
+            </div>
+          )}
+
+          {activeTab === 'logs' && <DecisionLogs />}
         </div>
       </div>
     </main>

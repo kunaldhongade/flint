@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: 'AI-powered DeFi yield optimization platform on Flare Network',
 }
 
-import { Web3ModalProvider } from '@/context/Web3Modal'
+import { PrivyContext } from '@/context/PrivyContext'
 import { headers } from 'next/headers'
 
 export default function RootLayout({
@@ -17,14 +17,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const cookies = headers().get('cookie')
-
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Web3ModalProvider cookies={cookies}>
+        <PrivyContext>
           {children}
-        </Web3ModalProvider>
+        </PrivyContext>
       </body>
     </html>
   )

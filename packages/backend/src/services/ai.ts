@@ -19,7 +19,7 @@ class AIService {
     asset: string,
     amount: string,
     availableOpportunities: YieldOpportunity[]
-  ): Promise<AIDecision> {
+  ): Promise<{ decision: AIDecision; attestation?: string }> {
     // Filter opportunities for the asset
     const relevantOpportunities = availableOpportunities.filter(
       (opp) => opp.asset === asset
@@ -69,6 +69,7 @@ class AIService {
     
     try {
       const aiAgentUrl = process.env.AI_AGENT_URL || 'http://localhost:8080';
+      console.log(`[AI Interaction] Calling Consensus Engine at ${aiAgentUrl}/consensus-decide with task: Allocation of ${amount} ${asset} to ${bestOpportunity.opportunity.protocol}`);
       const consensusResponse = await fetch(`${aiAgentUrl}/consensus-decide`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -81,6 +82,7 @@ class AIService {
       
       if (consensusResponse.ok) {
         const consensusData = await consensusResponse.json() as any;
+        console.log('[DEBUG] Full Consensus Response:', JSON.stringify(consensusData, null, 2));
         
         // Critical: Extract the Enclave Signature
         if (consensusData.attestation && consensusData.attestation.signature) {
@@ -115,7 +117,7 @@ class AIService {
         throw new Error("FATAL: Enclave Signature missing in final verification step");
     }
 
-    return decision;
+    return { decision, attestation: enclaveSignature };
   }
 
   /**

@@ -8,6 +8,7 @@ from typing import Union, TYPE_CHECKING
 import structlog
 
 from .config import AppSettings
+from .common.exceptions import SecurityViolationError
 
 if TYPE_CHECKING:
     from .a2a import A2AClient
@@ -38,6 +39,18 @@ class FlareAIKit:
 
         """
         self.settings = config or AppSettings()
+        
+        # Security Enforcement: Detect mock/unauthorized keys
+        google_api_key = self.settings.agent.google_api_key
+        if google_api_key:
+            key_val = google_api_key.get_secret_value().lower()
+            if any(forbidden in key_val for forbidden in ["dummy", "mock", "test", "fake"]):
+                logger.error("Security Violation: Mock/Dummy Google API key detected.")
+                raise SecurityViolationError("Unauthorized/Mock Google API key. System must fail-close.")
+        elif not google_api_key:
+            # Note: We allow initialization without key for non-AI tasks (like flare blockchain), 
+            # but AI tasks will fail-close at point of use.
+            logger.warning("Google API key not provided. AI-dependent features will fail-close.")
 
         # Lazy-loaded properties
         self._flare:Union[ Flare, None ]= None

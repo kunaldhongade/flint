@@ -9,6 +9,8 @@ services:
     ports:
       - "${BACKEND_PORT:-3333}:${PORT:-3001}"
     env_file: .env
+    environment:
+      - AI_AGENT_URL=http://flint-ai:8080
     depends_on:
       - redis
       - ai
@@ -23,6 +25,8 @@ services:
     ports:
       - "${AI_PORT_HOST:-8888}:8080"
     env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
     networks:
       - flint-network
 

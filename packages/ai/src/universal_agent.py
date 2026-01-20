@@ -3,12 +3,8 @@ import json
 import os
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
-try:
-    from pydantic_ai import Agent
-except ImportError:
-    class Agent:
-        def __init__(self, *args, **kwargs): pass
-        async def run(self, *args, **kwargs): pass
+from pydantic_ai import Agent
+from lib.flare_ai_kit.common.exceptions import SecurityViolationError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -50,17 +46,11 @@ class UniversalPolicyAgent:
         Provide a detailed evaluation and decision.
         """
         
-        if not os.getenv("GOOGLE_API_KEY"):
-            decision = PolicyDecision(
-                decision="approve",
-                justification=f"Simulated approval for {sector}. Policy audit complete.",
-                risk_score=0.15,
-                sector=sector,
-                compliance_flags=["SIMULATED_INTEGRITY"]
-            )
-        else:
-            result = await self.agent.run(prompt)
-            decision = result.output
+        if not os.getenv("GOOGLE_API_KEY") or "dummy" in (os.getenv("GOOGLE_API_KEY") or ""):
+            raise SecurityViolationError("Valid Google Gemini API key is required for execution. Fallback/Simulation is DISALLOWED.")
+
+        result = await self.agent.run(prompt)
+        decision = result.data
 
         # Calculate ChaosChain Reputation Hash (ERC-8004 Pattern)
         # This hash binds the input context and the output decision for audit trails.

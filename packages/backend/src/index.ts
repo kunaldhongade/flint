@@ -1,3 +1,4 @@
+console.log("Backend process starting...");
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -20,6 +21,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Request Logger
+app.use((req, res, next) => {
+  console.log(`[Request] ${req.method} ${req.url}`);
+  next();
+});
 
 // Apply Rate Limiting globally
 app.use(rateLimiter);
@@ -47,6 +54,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 // Start server
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
+    console.log(`Unbuffered log: FLINT Backend server running on port ${PORT}`);
     logger.info(`FLINT Backend server running on port ${PORT}`);
     
     // Initialize services
