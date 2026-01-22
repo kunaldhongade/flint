@@ -33,6 +33,7 @@ export interface PortfolioPosition {
 export interface AIDecision {
   id: string;
   timestamp: Date;
+  user?: string;
   action: 'ALLOCATE' | 'REALLOCATE' | 'DEALLOCATE' | 'HOLD';
   asset: AssetType;
   amount: string;

@@ -1,4 +1,7 @@
 import mock_adk
+from dotenv import load_dotenv
+load_dotenv() # Load from .env at root BEFORE other imports
+
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, List
@@ -17,6 +20,7 @@ class DecideRequest(BaseModel):
     strategy_name: str
     portfolio: Dict[str, Any]
     market_data: Dict[str, Any]
+    decision_context: Dict[str, Any] = None # Full decision object from backend
 
 class EvaluateRequest(BaseModel):
     sector: str
@@ -50,13 +54,27 @@ async def consensus_decide(request: DecideRequest):
         consensus_result = await consensus_engine.run_consensus(task)
         print("Consensus Result: ",consensus_result)
         
-        # Generate attestation for the consensus result
-        attestation = attestation_service.generate_attestation(consensus_result)
+        # Prepare data for EIP-712 signing
+        signing_data = consensus_result.copy()
+        if request.decision_context:
+            signing_data.update(request.decision_context)
+            
+        # Map human-readable action to integer for Solidity enum compatibility
+        action_map = {"ALLOCATE": 0, "REALLOCATE": 1, "DEALLOCATE": 2, "HOLD": 3}
+        if isinstance(signing_data.get("action"), str):
+            signing_data["action"] = action_map.get(signing_data["action"], 0)
+            
+        # Standardize CID field names for enclave_security
+        signing_data["modelCid"] = consensus_result.get("model_cid", "N/A")
+        signing_data["xaiCid"] = "QmSimulationTrace"
+        
+        # Generate attestation for the merged result
+        attestation = attestation_service.generate_attestation(signing_data)
         print("Attestation: ",attestation)
         
         return DecideResponse(
             decision_id=attestation["quote"]["report_data"],
-            decision=consensus_result,
+            decision=consensus_result, # Return original AI result to backend
             attestation=attestation
         )
     except Exception as e:
@@ -129,12 +147,21 @@ async def evaluate(request: EvaluateRequest):
             "chaos_verification": chaos_result.model_dump(),
             "final_status": "CERTIFIED" if chaos_result.is_robust else "FLAGGED"
         }
+
+        # Bridge the backend context with the AI results for a unified signature
+        sign_payload = {
+            **request.context, # id, user, action, asset, amount, fromProtocol, toProtocol, onChainHash, chainId, verifyingContract
+            "reasons": [primary_result.justification], # Match backend's array wrapper
+            "confidenceScore": int(primary_result.confidence * 10000), # Standardize 4-decimal integer
+            "modelCid": primary_result.model_cid,
+            "xaiCid": json.dumps(chaos_result.model_dump()) # Store full chaos report as XAI CID
+        }
         
         # 3. Flare TEE Attestation (Flare AI Kit / vTPM)
-        attestation = attestation_service.generate_attestation(final_decision)
+        attestation = attestation_service.generate_attestation(sign_payload)
         
         return DecideResponse(
-            decision_id=attestation["quote"]["report_data"],
+            decision_id=request.context.get("id"), # Return the ACTUAL ID, not report_data
             decision=final_decision,
             attestation=attestation
         )

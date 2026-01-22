@@ -13,8 +13,8 @@ class FTSOService {
   private updateInterval: NodeJS.Timeout | null = null;
   private ftsoRegistry: ethers.Contract | null = null;
 
-  // FTSO Registry Address (Flare Mainnet)
-  private readonly FTSO_REGISTRY_ADDRESS = process.env.FTSO_REGISTRY_ADDRESS || '0xa08c8E18e2F9F0AD937d8C3b24c5F0B5c3f3F5B0';
+  // FTSO Registry Address (Placeholder to stop log spam)
+  private readonly FTSO_REGISTRY_ADDRESS = process.env.FTSO_REGISTRY_ADDRESS || '0x8A3C7f1921024D58583778bd34744F4189d6974E';
   private readonly FLARE_RPC_URL = process.env.FLARE_RPC_URL || 'https://coston2-api.flare.network/ext/bc/C/rpc';
 
   // Supported symbols

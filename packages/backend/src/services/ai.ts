@@ -76,7 +76,8 @@ class AIService {
         body: JSON.stringify({
           strategy_name: `Allocation of ${amount} ${asset} to ${bestOpportunity.opportunity.protocol}`,
           portfolio: { asset, amount },
-          market_data: { risk_score: bestOpportunity.riskScore.overall }
+          market_data: { risk_score: bestOpportunity.riskScore.overall },
+          decision_context: decision
         })
       });
       
@@ -234,6 +235,7 @@ class AIService {
     const decision: AIDecision = {
       id: uuidv4(),
       timestamp: new Date(),
+      user: userId,
       action,
       asset: asset as any,
       amount,

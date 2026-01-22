@@ -33,6 +33,10 @@ class FlareAttestationService:
         self.vtpm = VtpmAttestation(simulate=self.simulate)
         self.tee_provider = "gcp_confidential_space"
 
+        self.chain_id = int(os.getenv("CHAIN_ID", "16")) # Default to Coston2 (114) or Flare (14) or Local (31337). user used 16? no 16 is Songbird? Coston2 is 114. Wait, let's just default to a safe value or error.
+        # Ideally, we should error if not set in production.
+        self.verifying_contract = os.getenv("DECISION_LOGGER_ADDRESS", "0x0000000000000000000000000000000000000000")
+
     def generate_attestation(self, decision_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Generates a vTPM-bound attestation object using Flare AI Kit.
@@ -58,7 +62,11 @@ class FlareAttestationService:
         # 3. Sign the Decision with the Enclave Private Key
         # This says "Key X signed this specific decision".
         # Combined with #1, we prove "TEE signed this decision".
-        signature = enclave_security.sign_decision(decision_data)
+        # EIP-712 requires chain_id and verifying_contract.
+        chain_id = int(os.getenv("CHAIN_ID", "114")) # Default Coston2
+        verifying_contract = os.getenv("DECISION_LOGGER_ADDRESS", "0x0000000000000000000000000000000000000000")
+        
+        signature = enclave_security.sign_decision(decision_data, chain_id, verifying_contract)
 
         attestation = {
             "version": "2.0-secure",

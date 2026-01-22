@@ -56,10 +56,30 @@ export class BlockchainService {
       const idBytes32 = ethers.id(decision.id);
       const onChainHashBytes32 = decision.onChainHash ? (decision.onChainHash.startsWith('0x') ? decision.onChainHash : ethers.id(decision.onChainHash)) : ethers.ZeroHash;
 
-      // Mock addresses for simulation if not present
-      const userAddr = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
-      const assetAddr = ethers.ZeroAddress; 
+      // Helper to ensure valid address (or ZeroAddress for names like "Aave")
+      const safeAddress = (addr: string | undefined): string => {
+        if (addr && ethers.isAddress(addr)) return addr;
+        return ethers.ZeroAddress;
+      };
+
+      // Use dynamic user address from decision object
+      const userAddr = safeAddress(decision.user);
+      const assetAddr = safeAddress(decision.asset); 
       const amount = ethers.parseEther(decision.amount.replace(/[^0-9.]/g, '') || '0');
+
+      console.log("DEBUG: logDecision parameters:", {
+        idBytes32,
+        userAddr,
+        action: actionMap[decision.action],
+        assetAddr,
+        amount: amount.toString(),
+        fromProtocol: safeAddress(decision.fromProtocol),
+        toProtocol: safeAddress(decision.toProtocol),
+        confidenceScore: Math.floor(decision.confidenceScore),
+        reasons: JSON.stringify(decision.reasons),
+        onChainHashBytes32,
+        signature
+      });
 
       const tx = await this.loggerContract.logDecision(
         idBytes32,
@@ -67,8 +87,8 @@ export class BlockchainService {
         actionMap[decision.action],
         assetAddr,
         amount,
-        decision.fromProtocol || ethers.ZeroAddress,
-        decision.toProtocol || ethers.ZeroAddress,
+        safeAddress(decision.fromProtocol),
+        safeAddress(decision.toProtocol),
         Math.floor(decision.confidenceScore),
         JSON.stringify(decision.reasons),
         JSON.stringify(decision.dataSources),

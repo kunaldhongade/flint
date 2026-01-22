@@ -5,7 +5,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 # ENV TEE_MODE=simulation  <-- DISABLED FOR STAGING. Must be provided at runtime or default to production.
-ENV PYTHONPATH=/app/src:/app/src/lib
+ENV PYTHONPATH=/app:/app/lib
 ENV PORT=8080
 
 # Set working directory

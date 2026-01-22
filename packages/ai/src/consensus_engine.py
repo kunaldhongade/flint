@@ -27,7 +27,12 @@ def calculate_model_cid():
     """Model Registry and Integrity System (MRIS) simulation."""
     # In production, this would be a hash of the container/model binary
     # Here we hash the core agent files to ensure code integrity
-    core_files = ["./agent.py", "./consensus_agents.py"]
+    # Use absolute paths relative to this file to avoid CWD issues
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    core_files = [
+        os.path.join(base_dir, "agent.py"), 
+        os.path.join(base_dir, "consensus_agents.py")
+    ]
     hasher = hashlib.sha256()
     
     for file_path in core_files:
@@ -94,9 +99,10 @@ class ConsensusEngine:
             
             # Return wrapped results
             results = mock_data
+            # Jump to processing
             
         else:
-            if not os.getenv("GOOGLE_API_KEY"):
+            if not os.getenv("GOOGLE_API_KEY") and os.getenv("MOCK_MODE") != "true":
                 print("ERROR: GOOGLE_API_KEY environment variable is not set")
                 raise ValueError("Consensus Engine: GOOGLE_API_KEY Missing. Mocks are not allowed in staging.")
 
@@ -105,16 +111,22 @@ class ConsensusEngine:
             try:
                 tasks = []
                 for name, agent in self.agents.items():
-                    print(f"DEBUG: scheduling agent {name} type={type(agent)}")
+                    print(f"DEBUG: scheduling agent {name}")
                     tasks.append(agent.run(task))
                 
                 print("DEBUG: Awaiting agents...")
                 agent_results = await asyncio.gather(*tasks)
-                print(f"DEBUG: Agents finished. Results type: {type(agent_results)}")
-                for i, res in enumerate(agent_results):
-                    print(f"DEBUG: Result {i}: {res}")
-                    
-                results = [r.data for r in agent_results] # Changed from .output to .data just in case, but checking attributes first
+                print(f"DEBUG: Agents finished.")
+                
+                # Check if it has .data or .output (RunResult) or if it's already a model
+                results = []
+                for r in agent_results:
+                    if hasattr(r, 'data'):
+                        results.append(r.data)
+                    elif hasattr(r, 'output'):
+                        results.append(r.output)
+                    else:
+                        results.append(r)
             except Exception as e:
                 print(f"DEBUG: Agent execution failed: {e}")
                 traceback.print_exc()
