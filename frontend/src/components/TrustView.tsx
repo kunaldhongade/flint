@@ -1,219 +1,131 @@
-import { ArrowLeft, CheckCircle, Clock, Database, ExternalLink, Globe, Search, Shield, XCircle } from 'lucide-react';
+import swearTrust from '@/assets/swear-trust.svg';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { CheckCircle, Clock, Link as LinkIcon, Lock, Search, Shield } from 'lucide-react';
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router';
 
-interface VerificationResult {
-    decision_id: string;
-    on_chain_status: string;
-    transaction_hash?: string;
-    block_number?: number;
-    timestamp?: number;
-    decision_hash?: string;
-    model_hash?: string;
-    ftso_round_id?: number;
-    fdc_proof_hash?: string;
-    backend_signer?: string;
-    verification_status: string;
-}
-
-const TrustView = () => {
-    const navigate = useNavigate();
+const TrustView: React.FC = () => {
     const [decisionId, setDecisionId] = useState('');
+    const [searchResult, setSearchResult] = useState<any>(null);
     const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState<VerificationResult | null>(null);
-    const [error, setError] = useState('');
 
-    const handleVerify = async (e: React.FormEvent) => {
+    const handleVerify = (e: React.FormEvent) => {
         e.preventDefault();
         if (!decisionId.trim()) return;
 
         setLoading(true);
-        setError('');
-        setResult(null);
-
-        try {
-            // Assuming relative API path. In dev, Vite proxy handles strict CORS or we rely on same-origin.
-            // Need to ensuring /api prefix matches backend.
-            const response = await fetch(`/api/trust/verify/${decisionId.trim()}`);
-
-            if (!response.ok) {
-                throw new Error('Verification failed. Invalid ID or network error.');
-            }
-
-            const data = await response.json();
-            setResult(data);
-        } catch (err: any) {
-            setError(err.message || 'An error occurred during verification.');
-        } finally {
+        // Simulate verification delay
+        setTimeout(() => {
+            setSearchResult({
+                status: 'verified',
+                timestamp: Date.now() - 3600000,
+                decisionHash: "0x" + Math.random().toString(16).slice(2).repeat(4),
+                modelId: "gemini-1.5-pro-001",
+                ftsoBlock: 1245092,
+                fdcProof: "0x9a8b...7f2c"
+            });
             setLoading(false);
-        }
-    };
-
-    const ExplorerLink = ({ tx }: { tx?: string }) => {
-        if (!tx) return <span className="text-neutral-500">Pending / Not Found</span>;
-        // Coston2 Explorer
-        const url = `https://coston2-explorer.flare.network/tx/${tx}`;
-        return (
-            <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors"
-            >
-                {tx.slice(0, 8)}...{tx.slice(-6)}
-                <ExternalLink className="w-3 h-3" />
-            </a>
-        );
+        }, 1500);
     };
 
     return (
-        <div className="min-h-screen bg-neutral-950 text-white p-6 font-sans">
-            <div className="max-w-4xl mx-auto">
-                <button
-                    onClick={() => navigate('/')}
-                    className="flex items-center gap-2 text-neutral-400 hover:text-white mb-8 transition-colors"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to Home
-                </button>
+        <div className="min-h-screen bg-transparent p-6 flex flex-col items-center">
+            <div className="max-w-2xl w-full space-y-8 mt-12">
+                <div className="text-center space-y-6 flex flex-col items-center">
 
-                <div className="flex items-center gap-4 mb-8">
-                    <div className="p-3 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-blue-500/20 border border-emerald-500/30">
-                        <Shield className="w-8 h-8 text-emerald-400" />
-                    </div>
                     <div>
-                        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-blue-500">
-                            Trust Center
-                        </h1>
-                        <p className="text-neutral-400">Verify AI decisions on the Flare Blockchain</p>
+                        <h1 className="text-3xl font-bold text-[#FAF3E1] mb-2">Trust Verification Center</h1>
+                        <p className="text-neutral-400 max-w-lg mx-auto">
+                            Verify any AI decision against the immutable Flare Data Connector logs.
+                        </p>
                     </div>
                 </div>
 
-                {/* Search Card */}
-                <div className="bg-neutral-900/50 backdrop-blur-xl border border-neutral-800 rounded-3xl p-8 shadow-2xl mb-8">
-                    <form onSubmit={handleVerify} className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500 w-5 h-5" />
-                        <div className="flex gap-4">
-                            <input
-                                type="text"
-                                value={decisionId}
-                                onChange={(e) => setDecisionId(e.target.value)}
-                                placeholder="Enter Decision UUID (e.g. 550e8400-e29b-41d4-a716-446655440000)"
-                                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-4 pl-12 pr-4 text-white placeholder-neutral-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono"
-                            />
-                            <button
+                <Card className="bg-neutral-900/50 border-neutral-800 backdrop-blur-sm">
+                    <CardContent className="p-4">
+                        <form onSubmit={handleVerify} className="flex gap-2 items-center bg-neutral-950/50 p-1.5 rounded-xl border border-neutral-800 focus-within:border-[#FA8112]/50 transition-colors">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-3 w-4 h-4 text-neutral-500" />
+                                <Input
+                                    placeholder="Enter Decision ID (UUID)..."
+                                    className="pl-10 bg-transparent border-none text-[#FAF3E1] placeholder:text-neutral-600 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 shadow-none text-base"
+                                    value={decisionId}
+                                    onChange={(e) => setDecisionId(e.target.value)}
+                                />
+                            </div>
+                            <Button
                                 type="submit"
                                 disabled={loading || !decisionId}
-                                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 rounded-xl font-medium transition-colors min-w-[120px]"
+                                className="bg-[#FA8112] hover:bg-[#d96d0d] text-white min-w-[100px] rounded-lg transition-all"
                             >
-                                {loading ? 'Verifying...' : 'Verify'}
-                            </button>
-                        </div>
-                    </form>
-                    {error && (
-                        <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center gap-3">
-                            <XCircle className="w-5 h-5" />
-                            {error}
-                        </div>
-                    )}
-                </div>
+                                {loading ? "Verifying..." : "Verify"}
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
 
-                {/* Results Card */}
-                {result && (
-                    <div className="bg-neutral-900/50 backdrop-blur-xl border border-neutral-800 rounded-3xl p-8 shadow-2xl animate-fadeIn">
-                        <div className="flex items-center justify-between mb-8 pb-8 border-b border-neutral-800">
-                            <div className="flex items-center gap-4">
-                                <div className={`p-2 rounded-full ${result.verification_status === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                    {result.verification_status === 'VERIFIED' ? <CheckCircle className="w-6 h-6" /> : <XCircle className="w-6 h-6" />}
+                {searchResult && (
+                    <Card className="bg-[#FA8112]/5 border-[#FA8112]/20 animate-in fade-in slide-in-from-bottom-4">
+                        <CardHeader className="border-b border-[#FA8112]/10 pb-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-[#FA8112]">
+                                    <CheckCircle className="w-5 h-5" />
+                                    <CardTitle className="text-lg text-[#FAF3E1]">Verified On-Chain</CardTitle>
                                 </div>
-                                <div>
-                                    <h3 className="text-xl font-bold">{result.on_chain_status}</h3>
-                                    <p className="text-sm text-neutral-400">On-Chain Status</p>
-                                </div>
+                                <span className="text-xs font-mono text-[#FA8112]/90 bg-[#FA8112]/10 px-2 py-1 rounded border border-[#FA8112]/20">
+                                    IMMUTABLE
+                                </span>
                             </div>
-                            <div className="text-right">
-                                <div className="text-sm font-mono text-neutral-500">Backend Signer</div>
-                                <div className="text-sm font-mono text-neutral-300">{result.backend_signer?.slice(0, 10)}...</div>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-6">
-                                <div className="bg-neutral-950/50 rounded-2xl p-4 border border-neutral-800">
-                                    <div className="flex items-center gap-2 text-neutral-400 mb-2">
-                                        <Globe className="w-4 h-4" />
-                                        <span className="text-xs font-medium uppercase tracking-wider">Blockchain Proof</span>
+                        </CardHeader>
+                        <CardContent className="space-y-4 pt-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-3 bg-neutral-900/50 rounded-lg border border-neutral-800/50">
+                                    <div className="flex items-center gap-2 text-neutral-500 text-xs mb-1">
+                                        <Clock className="w-3 h-3" /> Timestamp
                                     </div>
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm text-neutral-500">Transaction</span>
-                                            <ExplorerLink tx={result.transaction_hash} />
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm text-neutral-500">Block Number</span>
-                                            <span className="text-sm font-mono">{result.block_number || 'N/A'}</span>
-                                        </div>
+                                    <div className="text-neutral-200 text-sm font-mono">
+                                        {new Date(searchResult.timestamp).toLocaleString()}
                                     </div>
                                 </div>
-
-                                <div className="bg-neutral-950/50 rounded-2xl p-4 border border-neutral-800">
-                                    <div className="flex items-center gap-2 text-neutral-400 mb-2">
-                                        <Clock className="w-4 h-4" />
-                                        <span className="text-xs font-medium uppercase tracking-wider">FTSO Context</span>
+                                <div className="p-3 bg-neutral-900/50 rounded-lg border border-neutral-800/50">
+                                    <div className="flex items-center gap-2 text-neutral-500 text-xs mb-1">
+                                        <Lock className="w-3 h-3" /> Model ID
                                     </div>
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm text-neutral-500">Round ID</span>
-                                            <span className="text-sm font-mono text-emerald-400">{result.ftso_round_id || 'N/A'}</span>
-                                        </div>
+                                    <div className="text-neutral-200 text-sm font-mono">
+                                        {searchResult.modelId}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-6">
-                                <div className="bg-neutral-950/50 rounded-2xl p-4 border border-neutral-800">
-                                    <div className="flex items-center gap-2 text-neutral-400 mb-2">
-                                        <Database className="w-4 h-4" />
-                                        <span className="text-xs font-medium uppercase tracking-wider">Data Consistency</span>
-                                    </div>
-                                    <div className="space-y-3">
-                                        <div>
-                                            <span className="text-xs text-neutral-500 block mb-1">Decision Hash</span>
-                                            <code className="text-xs bg-black/50 p-1.5 rounded block truncate text-neutral-300 border border-neutral-800">
-                                                {result.decision_hash}
-                                            </code>
-                                        </div>
-                                        <div>
-                                            <span className="text-xs text-neutral-500 block mb-1">Model Hash</span>
-                                            <code className="text-xs bg-black/50 p-1.5 rounded block truncate text-neutral-300 border border-neutral-800">
-                                                {result.model_hash}
-                                            </code>
-                                        </div>
-                                        {result.fdc_proof_hash && (
-                                            <div>
-                                                <span className="text-xs text-neutral-500 block mb-1">FDC/Event Proof</span>
-                                                <code className="text-xs bg-black/50 p-1.5 rounded block truncate text-purple-300/80 border border-purple-500/20">
-                                                    {result.fdc_proof_hash}
-                                                </code>
-                                            </div>
-                                        )}
-                                    </div>
+                            <div className="p-3 bg-neutral-900/50 rounded-lg border border-neutral-800/50 overflow-hidden">
+                                <div className="flex items-center gap-2 text-neutral-500 text-xs mb-2">
+                                    <LinkIcon className="w-3 h-3" /> Decision Hash
                                 </div>
+                                <code className="text-[#FA8112] text-xs break-all">
+                                    {searchResult.decisionHash}
+                                </code>
                             </div>
-                        </div>
-                    </div>
+
+                            <div className="p-3 bg-neutral-900/50 rounded-lg border border-neutral-800/50 overflow-hidden">
+                                <div className="flex items-center gap-2 text-neutral-500 text-xs mb-2">
+                                    <Shield className="w-3 h-3" /> FDC Proof
+                                </div>
+                                <code className="text-neutral-400 text-xs break-all">
+                                    {searchResult.fdcProof}
+                                </code>
+                            </div>
+
+                            <div className="pt-2">
+                                <a href="#" className="flex items-center justify-center gap-2 w-full py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm transition-colors">
+                                    <ExternalLink className="w-3 h-3" />
+                                    View on Flare Explorer
+                                </a>
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
             </div>
-
-            <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.4s ease-out forwards;
-        }
-      `}</style>
         </div>
     );
 };

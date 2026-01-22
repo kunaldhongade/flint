@@ -24,6 +24,7 @@ class BlazeSwapHandler:
                 "WETH": "0x1502FA4be69d526124D453619276FacCab275d3D",  # WETH on Flare
                 "FLX": "0x22757fb83836e3F9F0F353126cACD3B1Dc82a387",  # FlareFox token
             }
+            self.wrapped_native_symbol = "WFLR"
             # Token decimals
             self.token_decimals = {
                 "FLR": 18,
@@ -44,6 +45,7 @@ class BlazeSwapHandler:
                 "WC2FLR": "0xC67DCE33D7A8efA5FfEB961899C73fe01bCe9273",  # Wrapped C2FLR
                 "FLX": "0x22757fb83836e3F9F0F353126cACD3B1Dc82a387",  # FlareFox token
             }
+            self.wrapped_native_symbol = "WC2FLR"
             # Token decimals
             self.token_decimals = {"C2FLR": 18, "WC2FLR": 18, "FLX": 18}
 
@@ -313,11 +315,11 @@ class BlazeSwapHandler:
             print(f"Debug - Preparing swap: {amount_in} {token_in} to {token_out}")
             print(f"Debug - Available tokens: {list(self.tokens.keys())}")
 
-            # Special case: FLR to WFLR (wrap)
-            if token_in.upper() == "FLR" and token_out.upper() == "WFLR":
+            # Special case: FLR to Wrapped Native (wrap)
+            if token_in.upper() == "FLR" and token_out.upper() == self.wrapped_native_symbol:
                 amount_in_wei = self.w3.to_wei(amount_in, "ether")
                 wflr_contract = self.w3.eth.contract(
-                    address=self.w3.to_checksum_address(self.tokens["WFLR"]),
+                    address=self.w3.to_checksum_address(self.tokens[self.wrapped_native_symbol]),
                     abi=self.wflr_abi,
                 )
 
@@ -394,8 +396,8 @@ class BlazeSwapHandler:
 
             # Prepare the path and transaction based on token types
             if token_in.upper() == "FLR":
-                # For FLR to any token, we need to go through WFLR
-                path = [self.tokens["WFLR"], token_out_address]  # FLR -> WFLR -> token
+                # For FLR to any token, we need to go through Wrapped Native
+                path = [self.tokens[self.wrapped_native_symbol], token_out_address]  # FLR -> WFLR -> token
                 print(f"Debug - Swap path for FLR: {path}")
 
                 try:
@@ -431,7 +433,7 @@ class BlazeSwapHandler:
                     )
             elif token_out.upper() == "FLR":
                 # For token to FLR swaps, use swapExactTokensForNAT
-                path = [token_in_address, self.tokens["WFLR"]]  # token -> WFLR -> FLR
+                path = [token_in_address, self.tokens[self.wrapped_native_symbol]]  # token -> WFLR -> FLR
                 print(f"Debug - Swap path for token to FLR: {path}")
 
                 try:

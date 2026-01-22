@@ -1,208 +1,218 @@
+import { useGSAP } from '@gsap/react';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
-import { ArrowRight, MessageSquare, Shield, Upload } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lottie from 'lottie-react';
+import { Activity, ArrowRight, Lock, Shield, Zap } from 'lucide-react';
+import { useRef } from 'react';
 import { useNavigate } from 'react-router';
+import contentModerationAnimation from './assets/content-moderation.json';
+import flintLogo from './assets/logo.svg';
 
-interface TypingEffectResult {
-  displayText: string;
-  isTyping: boolean;
-  isDone: boolean;
-}
+gsap.registerPlugin(ScrollTrigger);
 
-const useTypingEffect = (text: string, typingSpeed = 50, startDelay = 0): TypingEffectResult => {
-  const [displayText, setDisplayText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [isDone, setIsDone] = useState(false);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    let charIndex = 0;
-
-    if (text) {
-      setDisplayText('');
-      setIsTyping(false);
-      setIsDone(false);
-
-      timer = setTimeout(() => {
-        setIsTyping(true);
-
-        const typingInterval = setInterval(() => {
-          if (charIndex < text.length) {
-            setDisplayText(text.substring(0, charIndex + 1));
-            charIndex++;
-          } else {
-            clearInterval(typingInterval);
-            setIsTyping(false);
-            setIsDone(true);
-          }
-        }, typingSpeed);
-
-        return () => clearInterval(typingInterval);
-      }, startDelay);
-    }
-
-    return () => clearTimeout(timer);
-  }, [text, typingSpeed, startDelay]);
-
-  return { displayText, isTyping, isDone };
-};
-
-interface DarkGlassButtonProps {
-  children: React.ReactNode;
-  className?: string;
-  onClick: () => void;
-  icon?: React.ComponentType<{ className: string }>;
-}
-
-const DarkGlassButton: React.FC<DarkGlassButtonProps> = ({ children, className = '', onClick, icon }) => {
-  const Icon = icon || ArrowRight;
-  return (
-    <button
-      onClick={onClick}
-      className={`px-8 py-6 text-lg rounded-3xl bg-black/80 backdrop-blur-sm border border-white/10 text-white hover:bg-black/90 shadow-lg transition-all duration-200 flex items-center gap-3 group ${className}`}
-    >
-      {icon && <Icon className="w-5 h-5" />}
-      <span>{children}</span>
-      {!icon && <ArrowRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" />}
-    </button>
-  );
-};
-
-export function LandingPage() {
+const LandingPage = () => {
   const navigate = useNavigate();
   const { isConnected } = useAppKitAccount();
   const { open } = useAppKit();
 
-  const assistantMessageText = "Hi there! I'm your DeFi assistant. I'd love to learn more about your investing background. What broker do you use?";
-  const userMessageText = "I use Robinhood and want to explore DeFi investing options.";
+  const containerRef = useRef<HTMLDivElement>(null);
+  const storyRef = useRef<HTMLDivElement>(null);
 
-  const assistantTyping = useTypingEffect(assistantMessageText, 40, 500);
-  const userTyping = useTypingEffect(userMessageText, 40, 5000);
+  useGSAP(() => {
+    // 1. Reveal Hero (Standard Entrance)
+    const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+    tl.from('.hero-content > *', { y: 30, opacity: 0, duration: 1, stagger: 0.1, delay: 0.2 })
+      .from('.hero-visual', { scale: 0.9, opacity: 0, duration: 1.2, ease: 'elastic.out(1, 0.5)' }, "-=0.8");
 
-  const showUserBubble = assistantTyping.isDone || userTyping.isTyping || userTyping.isDone;
+    // 2. Story Section (Pinned Scroll Sequence)
+    // We create ONE Master Timeline that is linked to the scroll position of the container.
+    const storySections = gsap.utils.toArray<HTMLElement>('.story-section');
 
-  useEffect(() => {
-    if (isConnected) {
-      navigate("/chat");
-    }
-  }, [isConnected, navigate]);
+    // Initial States: First visible (static), others hidden/blurred (static)
+    // We let the timeline modify these properties.
+    gsap.set(storySections, { opacity: 0, zIndex: 0, scale: 0.8, filter: 'blur(10px)', pointerEvents: 'none' });
+    gsap.set(storySections[0], { opacity: 1, zIndex: 10, scale: 1, filter: 'blur(0px)', pointerEvents: 'auto' });
+
+    const scrollTl = gsap.timeline({
+      scrollTrigger: {
+        trigger: storyRef.current, // Pin the clean container
+        start: 'top top',
+        end: '+=2000', // Scroll distance to complete the story
+        scrub: 0.5, // Slight smoothing
+        pin: true,
+        anticipatePin: 1
+      }
+    });
+
+    // Animate between slides
+    storySections.forEach((section, i) => {
+      // Skip the last slide as it just stays visible or handles its own entrance
+      if (i === storySections.length - 1) return;
+
+      const nextSection = storySections[i + 1];
+
+      scrollTl
+        // Step 1: Fade OUT current
+        .to(section, {
+          opacity: 0,
+          scale: 1.1, // Zoom out effect
+          filter: 'blur(20px)',
+          duration: 1,
+          ease: 'power2.inOut'
+        })
+        // Step 2: Fade IN next (Overlap slightly for smoothness)
+        .to(nextSection, {
+          opacity: 1,
+          scale: 1,
+          filter: 'blur(0px)',
+          zIndex: 20 + i, // Ensure it sits on top
+          pointerEvents: 'auto',
+          duration: 1,
+          ease: 'power2.inOut'
+        }, "<0.2"); // Start 0.2 seconds after previous starts (heavier overlap for speed)
+    });
+
+  }, { scope: containerRef });
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950">
-      <nav className="container mx-auto px-4 py-6 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <div className="w-10 h-10 bg-gradient-to-tr from-blue-500 to-emerald-400 rounded-lg"></div>
-          <span className="text-xl font-bold text-neutral-900 dark:text-white">Flint</span>
+    <div ref={containerRef} className="bg-neutral-950 text-[#FAF3E1] selection:bg-[#FA8112]/30 overflow-x-hidden">
+      {/* Background Ambience */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#FA8112]/10 rounded-full blur-[100px] opacity-30 animate-pulse delay-700"></div>
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-[#F5E7C6]/10 rounded-full blur-[100px] opacity-30 animate-pulse"></div>
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 px-6 py-6 flex items-center justify-between z-50 bg-gradient-to-b from-neutral-950/80 to-transparent backdrop-blur-sm">
+        <a href="/">
+          <div className="flex items-center gap-3">
+            <img src={flintLogo} alt="Flint" className="h-8 w-auto" />
+          </div>
+        </a>
+        <div className="flex items-center gap-4">
+          {/* ... existing nav actions ... */}
+          <a
+            href="https://x.com/flint_network"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden md:flex items-center gap-2 text-sm text-neutral-400 hover:text-[#FAF3E1] transition-colors py-2 px-4 rounded-lg hover:bg-neutral-900"
+          >
+            X / Twitter
+          </a>
+          <appkit-button />
         </div>
-        <appkit-connect-button />
       </nav>
 
-      <section className="container mx-auto px-4 py-20 md:py-32 flex flex-col items-center text-center">
-        <h1 className="text-4xl md:text-6xl font-bold text-neutral-900 dark:text-white leading-tight max-w-4xl">
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-emerald-400">TradFi</span> {"=>"} <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">DeFi</span>
-        </h1>
+      {/* SPLIT HERO SECTION */}
+      <section className="relative min-h-screen flex items-center pt-20 px-6 z-10 container mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 items-center w-full">
+          {/* Left: Text Content */}
+          <div className="hero-content flex flex-col items-start gap-8 text-left max-w-2xl">
 
-        <span className="text-2xl font-bold italic animate-float">
-          <span className="text-blue-500">D</span>eFi{" "}
-          <span className="text-blue-500">IN</span>{" "}
-          <span className="text-blue-500">E</span>very{" "}
-          <span className="text-blue-500">S</span>ingle{" "}
-          <span className="text-blue-500">H</span>ouse
-        </span>
 
-        <p className="mt-6 text-xl text-neutral-600 dark:text-neutral-300 max-w-2xl">
-          Chat with our AI assistant to seamlessly create a personalized decentralized finance strategy that matches your traditional investment style.
-        </p>
-        <div className="mt-10">
-          <DarkGlassButton onClick={() => { open({ view: 'Connect' }); }}>
-            Start Your DeFi Journey
-          </DarkGlassButton>
-        </div>
+            <h1 className="text-6xl md:text-8xl font-bold tracking-tight leading-[1] bg-clip-text text-transparent bg-gradient-to-br from-[#FAF3E1] via-white to-neutral-400">
+              Trust only <br />
+              what you decide<br />
+              <span className="text-[#FA8112]">to verify.</span>
+            </h1>
 
-        <div className="relative w-full max-w-5xl mt-16 pb-16">
-          <div className="absolute -top-8 -left-4 w-20 h-20 bg-blue-500/10 rounded-full blur-xl"></div>
-          <div className="absolute top-1/2 -right-12 w-32 h-32 bg-emerald-400/10 rounded-full blur-xl"></div>
+            <p className="text-xl text-neutral-400 max-w-lg leading-relaxed">
+              The first execution layer that doesn't just run agents it forces them to prove their work on-chain before money moves.
+            </p>
 
-          <div className="relative h-96 bg-white dark:bg-neutral-800 rounded-xl shadow-2xl overflow-hidden border border-neutral-200 dark:border-neutral-700">
-            <div className="p-4 border-b border-neutral-200 dark:border-neutral-700 flex items-center justify-between">
-              <div className="flex space-x-2">
-                <div className="w-3 h-3 rounded-full bg-neutral-300 dark:bg-neutral-600"></div>
-                <div className="w-3 h-3 rounded-full bg-neutral-300 dark:bg-neutral-600"></div>
-                <div className="w-3 h-3 rounded-full bg-neutral-300 dark:bg-neutral-600"></div>
-              </div>
-              <div className="text-sm text-neutral-500 dark:text-neutral-400">DeFi Bridge Assistant</div>
-              <div className="w-16"></div>
-            </div>
-            <div className="p-6 h-64 flex flex-col justify-between gap-8">
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-emerald-400 rounded-full flex items-center justify-center text-white">
-                    <MessageSquare className="w-4 h-4" />
-                  </div>
-                  <div className="bg-neutral-100 dark:bg-neutral-700 p-3 rounded-lg rounded-tl-none max-w-xs">
-                    <p className="text-sm text-neutral-800 dark:text-neutral-200">
-                      {assistantTyping.displayText}
-                      {assistantTyping.isTyping && <span className="animate-pulse">|</span>}
-                    </p>
-                  </div>
-                </div>
 
-                {showUserBubble && (
-                  <div className="flex items-start gap-3 justify-end opacity-0 animate-fadeIn" style={{
-                    opacity: showUserBubble ? 1 : 0,
-                    animation: showUserBubble ? 'fadeIn 0.5s ease forwards' : 'none'
-                  }}>
-                    <div className="bg-blue-500 p-3 rounded-lg rounded-tr-none max-w-xs">
-                      <p className="text-sm text-white">
-                        {userTyping.displayText}
-                        {userTyping.isTyping && <span className="animate-pulse">|</span>}
-                      </p>
-                    </div>
-                    <div className="w-8 h-8 bg-neutral-200 dark:bg-neutral-600 rounded-full"></div>
-                  </div>
-                )}
-              </div>
+          </div>
 
-              <div className="mt-6 border border-dashed border-neutral-300 dark:border-neutral-600 rounded-lg p-4 flex items-center justify-center gap-2 text-neutral-600 dark:text-neutral-300">
-                <Upload className="w-4 h-4" />
-                <span className="text-sm">Upload your Robinhood portfolio or start from scratch!</span>
-              </div>
+          {/* Right: Visual (Lottie) */}
+          <div className="hero-visual relative flex items-center justify-center h-full min-h-[500px]">
+            {/* Visual decoration behind */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#FA8112]/5 to-transparent rounded-full blur-3xl transform scale-75"></div>
+            <div className="relative w-full max-w-[1000px] z-10 transform scale-125 origin-center">
+              <Lottie animationData={contentModerationAnimation} loop={true} />
             </div>
           </div>
         </div>
       </section>
 
-      <footer className="bg-neutral-100 dark:bg-neutral-900 py-12">
-        <div className="text-center text-neutral-500 dark:text-neutral-400 text-sm flex flex-col items-center gap-2">
-          <span>Made with ❤️ by FLINT Labs</span>
-          <button
-            onClick={() => navigate('/trust')}
-            className="text-xs text-neutral-600 dark:text-neutral-500 hover:text-blue-500 transition-colors flex items-center gap-1"
-          >
-            <Shield className="w-3 h-3" />
-            Verify Decisions
-          </button>
-        </div>
-      </footer>
+      {/* NEW ACTION STRIP SECTION */}
+      <div className="w-full flex border-y border-neutral-800 bg-neutral-950/50 backdrop-blur-sm z-30 relative overflow-hidden group">
+        {/* Button 1: Start / Connect */}
+        <button
+          onClick={() => isConnected ? navigate('/chat') : open({ view: 'Connect' })}
+          className="flex-1 h-24 flex items-center justify-center border-r border-neutral-800 hover:bg-[#FA8112]/5 transition-all duration-500 relative overflow-hidden group/btn1"
+        >
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
+          <span className="text-2xl md:text-3xl font-black tracking-widest uppercase text-[#FAF3E1] group-hover/btn1:text-[#FA8112] transition-colors flex items-center gap-4">
+            {isConnected ? 'Wanna try?' : 'Wallet Pls'}
+            <ArrowRight className="w-6 h-6 transform -rotate-45 group-hover/btn1:rotate-0 transition-transform duration-500" />
+          </span>
+          {/* Animated border bottom for flare */}
+          <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#FA8112] transform scale-x-0 group-hover/btn1:scale-x-100 transition-transform duration-500 origin-left"></div>
+        </button>
 
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
-        @keyframes float {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-5px); }
-          100% { transform: translateY(0px); }
-        }
-        
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
-        }
-      `}</style>
-    </div >
+        {/* Button 2: System Check */}
+        <button
+          onClick={() => navigate('/trust')}
+          className="flex-1 h-24 flex items-center justify-center hover:bg-neutral-900/50 transition-all duration-500 relative overflow-hidden group/btn2"
+        >
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
+          <span className="text-2xl md:text-3xl font-black tracking-widest uppercase text-neutral-500 group-hover/btn2:text-[#FAF3E1] transition-colors flex items-center gap-4">
+            see it yourself
+            <ArrowRight className="w-6 h-6 transform -rotate-45 group-hover/btn1:rotate-0 transition-transform duration-500" />
+          </span>
+          {/* Animated border bottom for flare */}
+          <div className="absolute bottom-0 left-0 w-full h-[2px] bg-white transform scale-x-0 group-hover/btn2:scale-x-100 transition-transform duration-500 origin-right"></div>
+        </button>
+      </div>
+
+      {/* STORY SECTION (Pinned Scroll) */}
+      <div ref={storyRef} className="relative h-screen bg-neutral-900 z-20">
+        {/* Center Content Stack */}
+        <div className="absolute inset-0 flex items-center justify-center px-6">
+
+          {/* Story 1 */}
+          <div className="story-section absolute w-full max-w-4xl text-center flex flex-col items-center gap-8">
+
+            <h2 className="text-5xl md:text-7xl font-bold text-[#FAF3E1]">Consensus by Debate</h2>
+            <p className="text-2xl text-neutral-400 max-w-2xl leading-relaxed">
+              One AI is a guess. Three is a council. Our Conservative, Aggressive, and Neutral agents argue every trade only the winner executes.
+            </p>
+          </div>
+
+          {/* Story 2 */}
+          <div className="story-section absolute w-full max-w-4xl text-center flex flex-col items-center gap-8 opacity-0">
+
+            <h2 className="text-5xl md:text-7xl font-bold text-white">Cryptographic Memory</h2>
+            <p className="text-2xl text-neutral-400 max-w-2xl leading-relaxed">
+              We don't just "log" chat. We hash the decision logic and pin it to the Flare Data Connector. History is immutable.
+            </p>
+          </div>
+
+          {/* Story 3 */}
+          <div className="story-section absolute w-full max-w-4xl text-center flex flex-col items-center gap-8 opacity-0">
+
+            <h2 className="text-5xl md:text-7xl font-bold text-white">Don't Trust. Verify.</h2>
+            <p className="text-2xl text-neutral-400 max-w-2xl leading-relaxed">
+              Check the proofs yourself. Use the Trust Center to validate that the AI you're talking to is the one that signed the transaction.
+            </p>
+          </div>
+
+        </div>
+
+        {/* Scroll Indicators / Progress could go here */}
+      </div>
+
+      {/* Footer Spacer to allow partial scroll out */}
+
+      <div className="h-[15vh] bg-neutral-900 z-20 relative flex items-end justify-center pb-20 ">
+        <a href="https://x.com/KunalDhongade">
+          <p className="text-neutral-600 font-mono cursor-pointer text-sm">FLINT NETWORK © 2026 | Kunal Dhongade</p>
+        </a>
+      </div>
+    </div>
   );
-}
+};
 
 export default LandingPage;

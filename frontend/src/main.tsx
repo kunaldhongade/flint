@@ -5,7 +5,9 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { WagmiProvider } from 'wagmi';
+import { AppLayout } from './components/AppLayout';
 import ChatInterface from './components/ChatInterface';
+import NotFound from './components/NotFound';
 import TrustView from './components/TrustView';
 import { metadata, networks, projectId, wagmiAdapter } from './config';
 import LandingPage from './LandingPage';
@@ -16,7 +18,7 @@ const generalConfig = {
   projectId,
   networks,
   metadata,
-  themeMode: 'light' as const,
+  themeMode: 'dark' as const,
   themeVariables: {
     '--w3m-accent': '#000000',
   }
@@ -35,11 +37,14 @@ createRoot(document.getElementById('root')!).render(
     <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/chat" element={<ChatInterface />} />
-            <Route path="/trust" element={<TrustView />} />
-          </Routes>
+          <AppLayout>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/chat" element={<ChatInterface />} />
+              <Route path="/trust" element={<TrustView />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppLayout>
         </BrowserRouter>
       </QueryClientProvider>
     </WagmiProvider>

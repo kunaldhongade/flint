@@ -186,16 +186,17 @@ class GeminiProvider(BaseAIProvider):
         )
 
     # @override
-    async def send_message_with_image(
-        self, msg: str, image: bytes, mime_type: str
+    # @override
+    async def send_message_with_attachment(
+        self, msg: str, file_data: bytes, mime_type: str
     ) -> ModelResponse:
         """
-        Send a message with an image using the Gemini vision model.
+        Send a message with an attachment (image, pdf, text, etc.) using the Gemini model.
 
         Args:
             msg: Text message to send
-            image: Binary image data
-            mime_type: MIME type of the image (e.g. image/jpeg)
+            file_data: Binary file data
+            mime_type: MIME type of the file (e.g. image/jpeg, application/pdf)
 
         Returns:
             ModelResponse containing the generated response
@@ -203,7 +204,7 @@ class GeminiProvider(BaseAIProvider):
         if not self.chat:
             self.chat = self.model.start_chat(history=self.chat_history)
 
-        # Retrieve relevant documents using RAG
+        # Retrieve relevant documents using RAG (still useful for context)
         retrieved_docs = await self.rag_processor.retrieve_relevant_docs(query=msg)
 
         # Augment the prompt with retrieved context
@@ -211,13 +212,13 @@ class GeminiProvider(BaseAIProvider):
             query=msg, retrieved_docs=retrieved_docs
         )
 
-        # Send augmented prompt with image to chat
+        # Send augmented prompt with attachment to chat
         response = self.chat.send_message(
-            [augmented_prompt, {"mime_type": mime_type, "data": image}]
+            [augmented_prompt, {"mime_type": mime_type, "data": file_data}]
         )
 
         self.logger.debug(
-            "send_message_with_image",
+            "send_message_with_attachment",
             msg=msg,
             mime_type=mime_type,
             augmented_prompt=augmented_prompt,

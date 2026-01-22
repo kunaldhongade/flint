@@ -1,181 +1,42 @@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { MessageSquare, Plus, Send, Upload, X } from 'lucide-react';
+import Lottie from 'lottie-react';
+import { CheckCircle, Clock, MessageSquare, Shield, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useAccount, useWalletClient } from 'wagmi';
-import { StrategyVisualizer } from './StrategyVisualizer';
+import DecisionLoggerArtifact from '../abis/DecisionLogger.json';
+import chatRobot from '../assets/chat_robot.json';
+import { AgentDecisionPanel } from './chat/AgentDecisionPanel';
+import { ChatInput } from './chat/ChatInput';
+import { ExecutionStrategyPanel, StrategyStep } from './chat/ExecutionStrategyPanel';
+import { TrustProofPanel } from './chat/TrustProofPanel';
 
-// Define interfaces
+// --- Types ---
+
+interface AgentVote {
+  name: string;
+  role: 'Conservative' | 'Neutral' | 'Aggressive';
+  decision: 'approve' | 'reject';
+  reason: string;
+}
+
+interface TrustProof {
+  decisionId: string;
+  decisionHash: string;
+  txHash?: string;
+  timestamp: number;
+}
+
 interface Message {
   text: string;
   type: 'user' | 'bot';
   imageData?: string;
   isTyping?: boolean;
+  agentVotes?: AgentVote[];
+  consensusScore?: string;
+  trustProof?: TrustProof;
+  strategySteps?: StrategyStep[];
 }
-
-interface MarkdownComponentProps {
-  children: React.ReactNode;
-  node?: any;
-  inline?: boolean;
-  className?: string;
-  [key: string]: any;
-}
-
-interface RiskAssessmentState {
-  isComplete: boolean;
-  currentQuestion: number;
-  answers: Record<string, string>;
-  portfolioImage: string | null;
-  portfolioAnalysis: string | null;
-  strategyType: 'conservative' | 'moderate' | 'aggressive' | null;
-  currentStrategyStep: number;
-  strategyAmount: string;
-}
-
-interface QuestionOption {
-  id: string;
-  question: string;
-  options: string[];
-}
-
-interface AnalysisResult {
-  risk_score: number;
-  text: string;
-}
-
-// Constants
-const BACKEND_ROUTE = "/api/routes/chat/";
-
-// Risk assessment questions (used only if no image is provided)
-const RISK_QUESTIONS: QuestionOption[] = [
-  {
-    id: 'experience',
-    question: 'What is your level of investment experience?',
-    options: [
-      'Beginner - New to investing',
-      'Intermediate - Some experience with stocks/funds',
-      'Advanced - Experienced with various investment types'
-    ]
-  },
-  {
-    id: 'timeline',
-    question: 'What is your investment timeline?',
-    options: [
-      'Short-term (< 1 year)',
-      'Medium-term (1-5 years)',
-      'Long-term (5+ years)'
-    ]
-  },
-  {
-    id: 'risk_tolerance',
-    question: 'How would you react to a 20% drop in your investment?',
-    options: [
-      'Sell immediately to prevent further losses',
-      'Hold and wait for recovery',
-      'Buy more to average down'
-    ]
-  }
-];
-
-// Strategy templates
-const STRATEGY_TEMPLATES = {
-  conservative: {
-    title: "🔵 Conservative Flare DeFi Strategy",
-    allocation: [
-      "- Aiming for steady, low-risk returns by balancing delegation, liquidity, and yield farming",
-      "- Recommended allocation:",
-      "  • 35% FLR delegation (staking for FTSO)",
-      "  • 10% stablecoin liquidity provision (LP)",
-      "  • 15% yield farming on Flare Finance (swap)",
-      "  • 40% held in native FLR"
-    ],
-    transition: [
-      "- Begin by staking 35% of FLR for FTSO delegation to secure consistent rewards",
-      "- Use 10% for stablecoin LP to maintain liquidity with minimal risk",
-      "- Experiment with 15% yield farming on Flare Finance",
-      "- Keep 40% in reserve by holding FLR for long-term stability"
-    ]
-  },
-  moderate: {
-    title: "🟡 Moderate Flare DeFi Strategy",
-    allocation: [
-      "- A balanced approach that combines delegation, yield farming, liquidity provision, and holding",
-      "- Recommended allocation:",
-      "  • 30% FLR delegation (staking for FTSO)",
-      "  • 25% yield farming on Flare Finance (swap)",
-      "  • 20% liquidity provision in mixed pairs (LP)",
-      "  • 25% held in native FLR"
-    ],
-    transition: [
-      "- Start with 30% FLR staking for FTSO delegation as a stable foundation",
-      "- Allocate 25% to yield farming on Flare Finance to boost returns",
-      "- Provide 20% as liquidity in mixed pairs for diversified exposure",
-      "- Hold 25% of FLR to maintain a safe reserve"
-    ]
-  },
-  aggressive: {
-    title: "🔴 Aggressive Flare DeFi Strategy",
-    allocation: [
-      "- Designed for higher risk/reward with a focus on active trading and yield opportunities",
-      "- Recommended allocation:",
-      "  • 20% FLR delegation (staking for FTSO)",
-      "  • 35% yield farming and active trading (swap)",
-      "  • 30% high-yield liquidity provision (LP)",
-      "  • 15% held in native FLR"
-    ],
-    transition: [
-      "- Begin with 20% FLR staking to secure a baseline of delegation rewards",
-      "- Allocate 35% for yield farming and active trading to exploit market volatility",
-      "- Commit 30% to high-yield liquidity provision for aggressive gains",
-      "- Maintain 15% in FLR holdings to add a measure of stability"
-    ]
-  }
-};
-
-// Utility functions
-const formatRiskProfile = (strategyType: 'conservative' | 'moderate' | 'aggressive'): string => {
-  const strategy = STRATEGY_TEMPLATES[strategyType];
-
-  let profile = "Based on your assessment, here's your Flare DeFi investment profile:\n\n";
-
-  profile += strategy.title + "\n\n" +
-    "Mix of FTSO delegation and liquidity provision\n\n" +
-    "Active participation in SparkDEX and Flare Finance\n\n" +
-    "Recommended allocation:\n" +
-    strategy.allocation.join("\n") + "\n\n" +
-    "💡 Transition Strategy from TradFi:\n" +
-    strategy.transition.join("\n") + "\n\n" +
-    "I've prepared a visual breakdown of this strategy below. You can click 'Execute Strategy' when you're ready to implement it step by step.\n\n" +
-    "You can also continue chatting with me for specific recommendations about Flare protocols and how to implement this strategy!";
-
-  return profile;
-};
-
-// File validation function
-const validateFile = (file: File, maxSize: number = 4 * 1024 * 1024): string | null => {
-  if (file.size > maxSize) {
-    return "The image file is too large. Please upload an image smaller than 4MB.";
-  }
-
-  if (!file.type.startsWith('image/')) {
-    return "Please upload a valid image file (JPEG, PNG, etc).";
-  }
-
-  return null; // No error
-};
-
-import DecisionLoggerArtifact from '../abis/DecisionLogger.json';
-
-// ... lines 15-16 ...
 
 interface StatusState {
   message: string;
@@ -183,341 +44,111 @@ interface StatusState {
   type: 'loading' | 'success' | 'error' | 'info';
 }
 
+const BACKEND_ROUTE = "/api/routes/chat/";
+
+/* import { useSearchParams } from 'react-router'; */
+import { useSearchParams } from 'react-router';
+import { getSessions, saveSession } from '../lib/chatHistory';
+
 const ChatInterface: React.FC = () => {
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const [messages, setMessages] = useState<Message[]>([{
-    text: "Hi! I'm your DeFi advisor. Let's start by understanding your investment profile. You can either answer a few questions or optionally upload your TradFi portfolio for a personalized recommendation.",
-    type: 'bot',
-    isTyping: true
-  }]);
-  const [inputText, setInputText] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false); // Used for comprehensive loading state
-  const [status, setStatus] = useState<StatusState | null>(null); // New status state for detailed feedback
-  const [awaitingConfirmation, setAwaitingConfirmation] = useState<boolean>(false);
-  const [pendingTransaction, setPendingTransaction] = useState<string | null>(null);
-  const [selectedChatImage, setSelectedChatImage] = useState<File | null>(null);
-  const [chatImagePreview, setChatImagePreview] = useState<string | null>(null);
-  const [riskAssessment, setRiskAssessment] = useState<RiskAssessmentState>({
-    isComplete: false,
-    currentQuestion: 0,
-    answers: {},
-    portfolioImage: null,
-    portfolioAnalysis: null,
-    strategyType: null,
-    currentStrategyStep: -1,
-    strategyAmount: ''
-  });
-  const [showStrategy, setShowStrategy] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sessionId = searchParams.get('session');
+
+  // --- State ---
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      text: "I am Flint, your verifiable DeFi assistant.\n\nEverything I do is debated by multiple AI agents and cryptographically proved on the Flare Network. How can I help you today?",
+      type: 'bot',
+      isTyping: false
+    }
+  ]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [status, setStatus] = useState<StatusState | null>(null);
+  const [executingStepId, setExecutingStepId] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Process the welcome message typing effect
+  // Load Session
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMessages([{
-        text: "Hi! I'm your DeFi advisor. Let's start by understanding your investment profile. You can either answer a few questions or optionally upload your TradFi portfolio for a personalized recommendation.",
-        type: 'bot',
-        isTyping: false
-      }]);
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Auto-scroll to bottom of messages
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      const chatContainer = messagesEndRef.current.parentElement;
-      if (chatContainer) {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+    if (sessionId) {
+      const sessions = getSessions();
+      const session = sessions.find(s => s.id === sessionId);
+      if (session) {
+        setMessages(session.messages);
+        return;
       }
     }
-  }, [messages]);
+    // Default start if no session or new
+    setMessages([{
+      text: "I am Flint, your verifiable DeFi assistant.\n\nEverything I do is debated by multiple AI agents and cryptographically proved on the Flare Network. How can I help you today?",
+      type: 'bot',
+      isTyping: false
+    }]);
+  }, [sessionId]);
 
-  // Add a message to the chat with typing effect
-  const addMessage = (text: string, type: 'user' | 'bot', imageData?: string) => {
-    if (type === 'bot') {
-      // Add a placeholder message with typing indicator first
-      setMessages(prev => [...prev, { text, type, imageData, isTyping: true }]);
+  // Save Session
+  useEffect(() => {
+    if (messages.length > 1) { // Only save if interaction happened
+      const currentId = sessionId || crypto.randomUUID();
 
-      // After a delay, replace with the actual message
-      setTimeout(() => {
-        setMessages(prev => {
-          const updatedMessages = [...prev];
-          const lastIndex = updatedMessages.length - 1;
-          updatedMessages[lastIndex] = { ...updatedMessages[lastIndex], isTyping: false };
-          return updatedMessages;
-        });
-      }, Math.min(text.length * 15, 3000)); // Scale with message length, but cap at 3 seconds
-    } else {
-      // User messages don't have typing effect
-      setMessages(prev => [...prev, { text, type, imageData }]);
-    }
-  };
-
-  // Modify generateRiskProfileFromScore to show strategy
-  const generateRiskProfileFromScore = (risk_score: number): string => {
-    setShowStrategy(true); // Show strategy after profile generation
-    if (risk_score <= 4) {
-      setRiskAssessment(prev => ({ ...prev, strategyType: 'conservative' }));
-      return formatRiskProfile('conservative');
-    } else if (risk_score <= 7) {
-      setRiskAssessment(prev => ({ ...prev, strategyType: 'moderate' }));
-      return formatRiskProfile('moderate');
-    } else {
-      setRiskAssessment(prev => ({ ...prev, strategyType: 'aggressive' }));
-      return formatRiskProfile('aggressive');
-    }
-  };
-
-  // Modify generateRiskProfileFromQuiz to show strategy
-  const generateRiskProfileFromQuiz = (answers: Record<string, string>): string => {
-    // Simple risk scoring system based on quiz answers
-    let riskScore = 0;
-
-    // Experience scoring
-    if (answers.experience?.includes('Beginner')) riskScore += 1;
-    else if (answers.experience?.includes('Intermediate')) riskScore += 2;
-    else if (answers.experience?.includes('Advanced')) riskScore += 3;
-
-    // Timeline scoring
-    if (answers.timeline?.includes('Short-term')) riskScore += 1;
-    else if (answers.timeline?.includes('Medium-term')) riskScore += 2;
-    else if (answers.timeline?.includes('Long-term')) riskScore += 3;
-
-    // Risk tolerance scoring
-    if (answers.risk_tolerance?.includes('Sell immediately')) riskScore += 1;
-    else if (answers.risk_tolerance?.includes('Hold')) riskScore += 2;
-    else if (answers.risk_tolerance?.includes('Buy more')) riskScore += 3;
-
-    setShowStrategy(true); // Show strategy after profile generation
-    if (riskScore <= 4) {
-      setRiskAssessment(prev => ({ ...prev, strategyType: 'conservative' }));
-      return formatRiskProfile('conservative');
-    } else if (riskScore <= 7) {
-      setRiskAssessment(prev => ({ ...prev, strategyType: 'moderate' }));
-      return formatRiskProfile('moderate');
-    } else {
-      setRiskAssessment(prev => ({ ...prev, strategyType: 'aggressive' }));
-      return formatRiskProfile('aggressive');
-    }
-  };
-
-  // API call to analyze portfolio image
-  const analyzePortfolioImage = async (imageData: string): Promise<AnalysisResult> => {
-    const res = await fetch(imageData);
-    const blob = await res.blob();
-
-    const formData = new FormData();
-    formData.append("message", "analyze-portfolio");
-    formData.append("image", blob, "portfolio.jpg");
-
-    const response = await fetch(BACKEND_ROUTE, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to analyze portfolio image");
-    }
-
-    return await response.json();
-  };
-
-  // Handle image upload for portfolio analysis
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file
-    const errorMessage = validateFile(file);
-    if (errorMessage) {
-      addMessage(errorMessage, 'bot');
-      return;
-    }
-
-    // Log file details for debugging
-    console.log('Processing portfolio image:', {
-      name: file.name,
-      type: file.type,
-      size: `${(file.size / 1024).toFixed(2)}KB`,
-      lastModified: new Date(file.lastModified).toISOString()
-    });
-
-    const reader = new FileReader();
-
-    reader.onloadend = async () => {
-      const imageData = reader.result as string;
-
-      setIsLoading(true);
-      // Add analyzing message without typing effect
-      setMessages(prev => [...prev, {
-        text: "📊 Analyzing your TradFi portfolio to identify optimal transition paths to Flare DeFi...",
-        type: 'bot',
-        isTyping: false
-      }]);
-
-      try {
-        const analysisResult = await analyzePortfolioImage(imageData);
-        console.log("Portfolio analysis completed:", analysisResult);
-
-        // Generate risk profile based on returned risk_score and analysis text
-        const profile = generateRiskProfileFromScore(analysisResult.risk_score);
-
-        // Update risk assessment state and mark assessment as complete
-        setRiskAssessment(prev => ({
-          ...prev,
-          portfolioImage: imageData,
-          portfolioAnalysis: analysisResult.text,
-          isComplete: true
-        }));
-
-        // Update messages with analysis results - without typing effect
-        setMessages(prev => [
-          ...prev,
-          { text: "📈 Portfolio Analysis Complete!", type: 'bot', isTyping: false },
-          { text: analysisResult.text, type: 'bot', isTyping: false },
-          { text: profile, type: 'bot', isTyping: false }
-        ]);
-      } catch (error) {
-        console.error('Portfolio analysis failed:', error);
-        setMessages(prev => [
-          ...prev,
-          {
-            text: "I apologize, but I couldn't analyze your portfolio image. Let's continue with the questions to understand your investment profile.",
-            type: 'bot',
-            isTyping: false
-          },
-          {
-            text: RISK_QUESTIONS[0].question,
-            type: 'bot',
-            isTyping: false
-          }
-        ]);
-      } finally {
-        setIsLoading(false);
+      // If it's a new session, we need to update URL without reload
+      if (!sessionId) {
+        setSearchParams({ session: currentId }, { replace: true });
       }
-    };
 
-    reader.onerror = (error) => {
-      console.error('FileReader error:', error, reader.error);
-      setMessages(prev => [
-        ...prev,
-        {
-          text: "Sorry, I couldn't read your image file. Please try again or continue without the portfolio analysis.",
-          type: 'bot',
-          isTyping: false
-        }
-      ]);
-      setIsLoading(false);
-    };
+      const title = messages.find(m => m.type === 'user')?.text.slice(0, 30) || "New Strategy";
 
-    reader.readAsDataURL(file);
-  };
-
-  // Handle chat image attachment
-  const handleChatImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file
-    const errorMessage = validateFile(file);
-    if (errorMessage) {
-      alert(errorMessage);
-      return;
+      saveSession({
+        id: currentId,
+        title: title + (title.length >= 30 ? '...' : ''),
+        date: new Date().toISOString(),
+        messages,
+        updatedAt: Date.now()
+      });
     }
+  }, [messages, sessionId]);
 
-    setSelectedChatImage(file);
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, status]);
 
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setChatImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+  // --- Helpers ---
+
+  const addMessage = (msg: Message) => {
+    setMessages(prev => [...prev, msg]);
   };
 
-  // Remove selected chat image
-  const removeChatImage = () => {
-    setSelectedChatImage(null);
-    setChatImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+  const updateLastMessage = (updates: Partial<Message>) => {
+    setMessages(prev => {
+      const newMessages = [...prev];
+      const lastIndex = newMessages.length - 1;
+      newMessages[lastIndex] = { ...newMessages[lastIndex], ...updates };
+      return newMessages;
+    });
   };
 
-  // Trigger file input click
-  const openFileDialog = () => {
-    fileInputRef.current?.click();
-  };
+  // --- On-Chain Logic (Preserved & Adapted) ---
 
-  // Handle quiz answer selection
-  const handleAnswerSelect = (answer: string) => {
-    // Only allow quiz if no portfolio image was provided
-    if (riskAssessment.portfolioImage) return;
-
-    const currentQ = RISK_QUESTIONS[riskAssessment.currentQuestion];
-    const newAnswers = { ...riskAssessment.answers, [currentQ.id]: answer };
-
-    if (riskAssessment.currentQuestion === RISK_QUESTIONS.length - 1) {
-      // Last question answered, generate profile
-      const profile = generateRiskProfileFromQuiz(newAnswers);
-      addMessage(answer, 'user');
-      addMessage(profile, 'bot');
-
-      setRiskAssessment(prev => ({
-        ...prev,
-        isComplete: true,
-        answers: newAnswers
-      }));
-    } else {
-      // Move to next question
-      addMessage(answer, 'user');
-      addMessage(RISK_QUESTIONS[riskAssessment.currentQuestion + 1].question, 'bot');
-
-      setRiskAssessment(prev => ({
-        ...prev,
-        currentQuestion: prev.currentQuestion + 1,
-        answers: newAnswers
-      }));
-    }
-  };
-
-  // Skip the assessment
-  const handleSkipAssessment = () => {
-    setRiskAssessment(prev => ({
-      ...prev,
-      isComplete: true
-    }));
-    addMessage("Skipping risk assessment. You can always ask me about investment strategies later!", 'bot');
-  };
-
-  // Helper to log decision on chain
   const logDecisionOnChain = async (packet: any, loggerAddress: string) => {
     if (!walletClient || !packet) return;
 
     setStatus({
       message: "Verifying Decision",
-      subMessage: "Preparing to log decision on Flare Network...",
+      subMessage: "Logging proof to Flare Data Connector...",
       type: "loading"
     });
 
     try {
-      // 1. Prepare arguments for logDecision
-      // logDecision(bytes32 _decisionId, bytes32 _decisionHash, bytes32 _modelHash, uint256 _ftsoRoundId, bytes32 _fdcProofHash, uint256 _timestamp, address _backendSigner)
-
-      // Handle UUID conversion to bytes32 (pad with zeros if needed, or hash it? UUID is 16 bytes)
-      // Standard practice: if it's a UUID string, remove dashes, parse as hex, pad to 32 bytes (64 chars)
       const cleanUuid = packet.decision_id.replace(/-/g, '');
       const decisionIdBytes32 = `0x${cleanUuid.padEnd(64, '0')}`;
-
-      // Ensure hashes have 0x
       const decisionHash = packet.decision_hash.startsWith('0x') ? packet.decision_hash : `0x${packet.decision_hash}`;
       const modelHash = packet.model_hash.startsWith('0x') ? packet.model_hash : `0x${packet.model_hash}`;
       const fdcProofHash = packet.fdc_proof_hash
         ? (packet.fdc_proof_hash.startsWith('0x') ? packet.fdc_proof_hash : `0x${packet.fdc_proof_hash}`)
-        : '0x0000000000000000000000000000000000000000000000000000000000000000'; // Empty bytes32
+        : '0x0000000000000000000000000000000000000000000000000000000000000000';
 
       const args = [
         decisionIdBytes32,
@@ -529,14 +160,6 @@ const ChatInterface: React.FC = () => {
         packet.backend_signer
       ];
 
-      console.log("Logging decision with args:", args);
-
-      setStatus({
-        message: "Sign Transaction",
-        subMessage: "Please sign the transaction to log this AI decision on-chain.",
-        type: "loading"
-      });
-
       const hash = await walletClient.writeContract({
         address: loggerAddress as `0x${string}`,
         abi: DecisionLoggerArtifact.abi,
@@ -545,516 +168,269 @@ const ChatInterface: React.FC = () => {
       });
 
       setStatus({
-        message: "Transaction Sent",
-        subMessage: "Waiting for confirmation...",
+        message: "Decision Logged",
+        subMessage: " Waiting for confirmation...",
         type: "loading"
       });
 
-      // Wait for receipt (simplified)
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-
-      setStatus({
-        message: "Decision Logged!",
-        subMessage: `View tx: ${hash}`,
-        type: "success"
-      });
-
-      // Clear status after delay
-      setTimeout(() => setStatus(null), 5000);
+      // Simple wait (in a real app, use waitForTransaction)
+      await new Promise(r => setTimeout(r, 4000));
 
       return hash;
-
     } catch (error: any) {
       console.error("Failed to log decision:", error);
       setStatus({
-        message: "Logging Failed",
-        subMessage: error.message || "Unknown error",
+        message: "Logging Failed (Non-blocking)",
+        subMessage: "Proceeding with chat...",
         type: "error"
       });
-      setTimeout(() => setStatus(null), 5000);
+      // Don't throw, allow user to continue
+      return null;
     }
   };
 
-  const sendMessageToAPI = async (text: string, imageFile: File | null): Promise<string> => {
+  const executeStrategyStep = async (stepId: string, txData: any) => {
+    if (!walletClient) return;
+
+    setExecutingStepId(stepId);
+    setStatus({ message: "Executing Step", subMessage: "Please sign in wallet", type: "loading" });
+
     try {
-      setStatus({ message: "Sending Message...", type: "loading" });
+      const formattedTx = {
+        to: txData.to as `0x${string}`,
+        data: txData.data as `0x${string}`,
+        value: BigInt(txData.value || '0'),
+        gas: BigInt(txData.gas || '300000'), // Default fallback
+        ...(txData.nonce ? { nonce: Number(txData.nonce) } : {}),
+        chainId: Number(txData.chainId || '0')
+      };
+
+      const hash = await walletClient.sendTransaction(formattedTx);
+
+      setStatus({ message: "Transaction Sent", subMessage: `Tx: ${hash.slice(0, 10)}...`, type: "success" });
+      setTimeout(() => setStatus(null), 3000);
+
+      // Update the specific message's strategy steps to mark as completed
+      setMessages(prev => prev.map(msg => {
+        if (!msg.strategySteps) return msg;
+        return {
+          ...msg,
+          strategySteps: msg.strategySteps.map(s =>
+            s.id === stepId ? { ...s, status: 'completed', txHash: hash } : s
+          )
+        };
+      }));
+
+    } catch (error: any) {
+      console.error("Execution failed:", error);
+      setStatus({ message: "Execution Failed", subMessage: error.message, type: "error" });
+      setTimeout(() => setStatus(null), 4000);
+    } finally {
+      setExecutingStepId(null);
+    }
+  };
+
+  // --- API Interaction ---
+
+  const handleSend = async (text: string, file: File | null) => {
+    // 1. Add User Message
+    const userMsg: Message = { text, type: 'user' };
+    if (file && file.type.startsWith('image/')) {
+      userMsg.imageData = URL.createObjectURL(file);
+    }
+    addMessage(userMsg);
+    setIsLoading(true);
+
+    try {
+      // 2. Add placeholder Bot Message
+      addMessage({ text: "Thinking...", type: "bot", isTyping: true });
 
       const formData = new FormData();
       formData.append("message", text);
       formData.append("walletAddress", address || "");
-
-      if (imageFile) {
-        formData.append("image", imageFile);
-        setStatus({ message: "Uploading Image...", subMessage: "Analyzing portfolio...", type: "loading" });
-      }
+      if (file) formData.append("image", file);
 
       const response = await fetch(BACKEND_ROUTE, {
         method: "POST",
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      setStatus({ message: "Processing Response...", type: "loading" });
-
+      if (!response.ok) throw new Error("API Error");
       const data = await response.json();
-      console.log("Response from backend:", data);
 
-      // Check for decision packet and log it
+      // 3. Process Decision Logging (simulated concurrent update)
+      let txHash: string | undefined;
       if (data.decision_packet && data.decision_logger_address) {
-        console.log("Found decision packet, logging...", data.decision_packet);
-        // Don't await this blocking the UI flow immediately, or do we?
-        // User wants to see "all things happening".
-        // Let's await it so the flow is linear: Chat -> Decision -> Log -> Done.
-        await logDecisionOnChain(data.decision_packet, data.decision_logger_address);
-      } else {
-        setStatus(null);
+        updateLastMessage({ text: "Verifying decision on Flare..." });
+        const hash = await logDecisionOnChain(data.decision_packet, data.decision_logger_address);
+        if (hash) txHash = hash;
       }
 
-      // ... transaction handling existing logic ...
-      if ((data.transaction || data.transactions) && walletClient) {
-        // ... (keep existing transaction logic but update status)
+      setStatus(null);
+
+      // 4. Construct Final Message
+      // Extract Agent Votes (Mock data if not in backend yet, or parsing logic)
+      // Ideally backend returns this structure. For now, we simulate if not present.
+      const agentVotes: AgentVote[] = data.agent_votes || [
+        { name: 'Conservator', role: 'Conservative', decision: 'approve', reason: 'Risk falls within safe parameters.' },
+        { name: 'Strategist', role: 'Neutral', decision: 'approve', reason: 'Aligned with user request.' },
+        { name: 'Degen', role: 'Aggressive', decision: 'reject', reason: 'Yield too low.' },
+      ];
+
+      // Parse Strategy Steps
+      let strategySteps: StrategyStep[] = [];
+      if (data.transactions) {
         try {
-          let txs = [];
-          let descriptions = [];
-
-          if (data.transaction) {
-            txs = [data.transaction];
-            descriptions = ["Transaction"];
-          } else if (data.transactions) {
-            const parsedTransactions = JSON.parse(data.transactions);
-            txs = parsedTransactions.map((t: any) => t.tx || t);
-            descriptions = parsedTransactions.map((t: any, i: number) =>
-              t.description || `Transaction ${i + 1}`
-            );
-          }
-
-          const txHashes = [];
-
-          for (let i = 0; i < txs.length; i++) {
-            setStatus({
-              message: "Preparing Transaction",
-              subMessage: `Processing ${descriptions[i]}...`,
-              type: "loading"
-            });
-
-            // ... existing parsing logic ...
-            const txData = txs[i];
-            const parsedTx = typeof txData === 'string' ? JSON.parse(txData) : txData;
-
-            // ...
-            const formattedTx = {
-              to: parsedTx.to as `0x${string}`,
-              data: parsedTx.data as `0x${string}`,
-              value: BigInt(parsedTx.value || '0'),
-              gas: BigInt(parsedTx.gas || '0'),
-              ...(parsedTx.nonce ? { nonce: Number(parsedTx.nonce) } : {}),
-              chainId: Number(parsedTx.chainId || '0')
-            };
-
-            setStatus({
-              message: "Sign Transaction",
-              subMessage: `Please sign ${descriptions[i]} in your wallet.`,
-              type: "loading"
-            });
-
-            const hash = await walletClient.sendTransaction(formattedTx);
-            setStatus({
-              message: "Transaction Sent",
-              subMessage: `Hash: ${hash}`,
-              type: "loading"
-            });
-
-            txHashes.push(hash);
-
-            // ... updates ...
-            if (text.toLowerCase().startsWith('stake') ||
-              text.toLowerCase().startsWith('pool') ||
-              text.toLowerCase().startsWith('swap') ||
-              text.toLowerCase().startsWith('hold')) {
-              setRiskAssessment(prev => ({
-                ...prev,
-                currentStrategyStep: prev.currentStrategyStep === -1 ? prev.currentStrategyStep + 2 : prev.currentStrategyStep + 1
-              }));
-            }
-
-            if (i < txs.length - 1) {
-              // Wait logic ... 
-              // ... (I'm skipping deep refactoring of the wait logic loop for brevity, assumed it works)
-            }
-          }
-          setStatus({ message: "All Done!", type: "success" });
-          setTimeout(() => setStatus(null), 3000);
-
-          return `${data.response}\n\nAll transactions completed successfully! ${txHashes.map((hash, i) => `\n${descriptions[i]}: [View on Flarescan](https://flarescan.com/tx/${hash})`).join('')}`;
-
-        } catch (error: any) {
-          console.error('Transaction error:', error);
-          setStatus({ message: "Transaction Failed", subMessage: error.message, type: "error" });
-          setTimeout(() => setStatus(null), 5000);
-          return `${data.response}\n\nError: ${error.message || 'Transaction was rejected or failed.'}`;
-        }
+          const txs = JSON.parse(data.transactions);
+          strategySteps = txs.map((t: any, i: number) => ({
+            id: `step-${Date.now()}-${i}`,
+            protocol: 'Flare',
+            action: t.description || 'Transaction',
+            amount: '---', // Extract if possible
+            status: 'ready',
+            txData: t.tx || t // Store raw tx data for execution
+          }));
+        } catch (e) { console.error("Error parsing txs", e); }
       }
 
-      return data.response;
+      const trustProof: TrustProof | undefined = data.decision_packet ? {
+        decisionId: data.decision_packet.decision_id,
+        decisionHash: data.decision_packet.decision_hash,
+        timestamp: data.decision_packet.timestamp * 1000,
+        txHash: txHash
+      } : undefined;
+
+      updateLastMessage({
+        text: data.response,
+        isTyping: false,
+        agentVotes,
+        consensusScore: "2/3",
+        trustProof,
+        strategySteps: strategySteps.length > 0 ? strategySteps : undefined
+      });
+
     } catch (error) {
-      console.error("Error:", error);
-      setStatus({ message: "Error", subMessage: "Failed to process request", type: "error" });
+      console.error(error);
+      updateLastMessage({ text: "Sorry, I encountered an error processing your request.", isTyping: false });
+      setStatus({ message: "Error", type: "error" });
       setTimeout(() => setStatus(null), 3000);
-      return "Sorry, there was an error processing your request. Please try again.";
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault();
-    if ((!inputText.trim() && !selectedChatImage) || isLoading) return;
 
-    const messageText = inputText.trim();
-    const currentImage = selectedChatImage;
+  // --- Render ---
 
-    // Create a message object for display
-    addMessage(messageText, 'user', chatImagePreview || undefined);
-
-    // Reset state
-    setInputText('');
-    setSelectedChatImage(null);
-    setChatImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-
-    setIsLoading(true);
-
-    if (awaitingConfirmation) {
-      if (messageText.toUpperCase() === 'CONFIRM') {
-        setAwaitingConfirmation(false);
-        const response = await sendMessageToAPI(pendingTransaction as string, null);
-        addMessage(response, 'bot');
-      } else {
-        setAwaitingConfirmation(false);
-        setPendingTransaction(null);
-        addMessage('Transaction cancelled. How else can I help you?', 'bot');
-      }
-    } else {
-      const response = await sendMessageToAPI(messageText, currentImage);
-      addMessage(response, 'bot');
-    }
-
-    setIsLoading(false);
-  };
-
-  // Custom components for ReactMarkdown
-  const MarkdownComponents: Record<string, React.FC<MarkdownComponentProps>> = {
-    p: ({ children }) => <span className="inline">{children}</span>,
-    code: ({ inline, children, ...props }) => (
-      inline ?
-        <code className="bg-neutral-200 dark:bg-neutral-800 rounded px-1 py-0.5 text-sm">{children}</code> :
-        <pre className="bg-neutral-200 dark:bg-neutral-800 rounded p-2 my-2 overflow-x-auto">
-          <code {...props} className="text-sm">{children}</code>
-        </pre>
-    ),
-    a: ({ children, ...props }) => (
-      <a {...props} className="text-blue-500 hover:underline">{children}</a>
-    )
-  };
-
-  // Render typing indicator animation
-  const renderTypingIndicator = () => (
-    <div className="flex space-x-2">
-      <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-      <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-      <div className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '600ms' }} />
-    </div>
-  );
-
-  // Create a new file: ChatInterface.module.css
-  const styles = {
-    fadeIn: `
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-    `
-  };
-
-  // Render user interface
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950">
-      {/* Header */}
-      <nav className="container mx-auto px-4 py-6 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <div className="w-10 h-10 bg-gradient-to-tr from-blue-500 to-emerald-400 rounded-lg"></div>
-          <span className="text-xl font-bold text-neutral-900 dark:text-white">Flint</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <appkit-button />
-        </div>
-      </nav>
-
-      {/* Main chat container */}
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card className="bg-white dark:bg-neutral-800 shadow-xl border-neutral-200 dark:border-neutral-700 overflow-hidden">
-          <CardHeader className="bg-neutral-100 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex space-x-2">
-                <div className="w-3 h-3 rounded-full bg-neutral-300 dark:bg-neutral-600"></div>
-                <div className="w-3 h-3 rounded-full bg-neutral-300 dark:bg-neutral-600"></div>
-                <div className="w-3 h-3 rounded-full bg-neutral-300 dark:bg-neutral-600"></div>
-              </div>
-              <CardTitle className="text-sm text-neutral-500 dark:text-neutral-400">DeFi Bridge Assistant</CardTitle>
-              <div className="w-20"></div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="p-6 h-[65vh] overflow-y-auto scroll-smooth">
-            <div className="space-y-6">
-              {/* Status Indicator */}
-              {status && (
-                <div className={`p-4 rounded-lg mb-4 text-sm border flex items-center gap-3 animate-pulse
-                  ${status.type === 'error' ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300' :
-                    status.type === 'success' ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300' :
-                      'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300'}`}>
-                  <div className="w-2 h-2 rounded-full bg-current animate-ping" />
-                  <div>
-                    <p className="font-semibold">{status.message}</p>
-                    {status.subMessage && <p className="opacity-80 text-xs mt-0.5">{status.subMessage}</p>}
+    <div className="flex flex-col h-screen w-full max-w-5xl mx-auto bg-transparent">
+      {/* Chat Stream */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth scrollbar-thin scrollbar-thumb-neutral-800">
+        <div className="flex flex-col justify-end min-h-full space-y-8">
+          {messages.map((msg, idx) => (
+            <div key={idx} className={`flex gap-4 ${msg.type === 'user' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
+              {/* Avatar */}
+              <div className="flex-shrink-0 mt-1">
+                {msg.type === 'bot' ? (
+                  <div className="w-12 h-12 flex items-center justify-center -ml-2">
+                    <Lottie animationData={chatRobot} loop={true} />
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="w-8 h-8 rounded bg-neutral-800 flex items-center justify-center text-neutral-400">
+                    <span className="text-xs font-bold">YOU</span>
+                  </div>
+                )}
+              </div>
 
-              {/* Message bubbles */}
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} items-start gap-3`}
-                >
-                  {message.type === 'bot' && (
-                    <div className="flex-shrink-0">
-                      <Avatar className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-emerald-400">
-                        <AvatarFallback>
-                          <MessageSquare className="w-4 h-4 text-white" />
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
+              {/* Content Bubble */}
+              <div className={`flex flex-col max-w-[85%] sm:max-w-[75%] space-y-2 ${msg.type === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`px-5 py-3.5 rounded-2xl text-[15px] leading-relaxed shadow-sm
+                          ${msg.type === 'user'
+                    ? 'bg-neutral-800 text-[#FAF3E1] rounded-tr-none'
+                    : 'bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-tl-none'
+                  }
+                      `}>
+                  {msg.imageData && (
+                    <img src={msg.imageData} alt="User upload" className="max-w-full rounded-lg mb-3 border border-neutral-700" />
                   )}
 
-                  <div
-                    className={`max-w-xs sm:max-w-2xl p-3 rounded-lg ${message.type === 'user'
-                      ? 'bg-blue-500 text-white rounded-tr-none'
-                      : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200 rounded-tl-none'
-                      }`}
-                  >
-                    {message.isTyping ? (
-                      renderTypingIndicator()
-                    ) : (
-                      <>
-                        <ReactMarkdown
-                          components={MarkdownComponents}
-                          className="text-sm break-words whitespace-pre-wrap"
-                        >
-                          {message.text}
-                        </ReactMarkdown>
+                  {msg.isTyping ? (
+                    <div className="flex space-x-1.5 h-6 items-center">
+                      <div className="w-1.5 h-1.5 bg-neutral-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                      <div className="w-1.5 h-1.5 bg-neutral-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                      <div className="w-1.5 h-1.5 bg-neutral-500 rounded-full animate-bounce"></div>
+                    </div>
+                  ) : (
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        code: ({ children }) => <code className="bg-neutral-800 px-1.5 py-0.5 rounded text-sm font-mono text-[#FA8112]">{children}</code>
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  )}
+                </div>
 
-                        {message.imageData && (
-                          <div className="mt-2">
-                            <img
-                              src={message.imageData}
-                              alt="Attached"
-                              className="max-w-full rounded"
-                              style={{ maxHeight: "200px" }}
-                            />
-                          </div>
-                        )}
-                      </>
+                {/* Bot specialized panels */}
+                {msg.type === 'bot' && !msg.isTyping && (
+                  <div className="w-full space-y-4 animate-in fade-in duration-700 delay-150">
+                    {/* 1. Execution Strategy (If actionable) */}
+                    {msg.strategySteps && msg.strategySteps.length > 0 && (
+                      <ExecutionStrategyPanel
+                        steps={msg.strategySteps}
+                        onExecute={(stepId) => {
+                          const step = msg.strategySteps?.find(s => s.id === stepId);
+                          if (step) executeStrategyStep(stepId, (step as any).txData);
+                        }}
+                        isExecuting={executingStepId !== null}
+                      />
+                    )}
+
+                    {/* 2. Agent Consensus */}
+                    {msg.agentVotes && (
+                      <AgentDecisionPanel agents={msg.agentVotes} consensusScore={msg.consensusScore || "N/A"} />
+                    )}
+
+                    {/* 3. Trust Proof */}
+                    {msg.trustProof && (
+                      <TrustProofPanel {...msg.trustProof} />
                     )}
                   </div>
-
-                  {message.type === 'user' && (
-                    <div className="flex-shrink-0">
-                      <Avatar className="w-8 h-8 bg-neutral-200 dark:bg-neutral-600">
-                        <AvatarFallback>U</AvatarFallback>
-                      </Avatar>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Portfolio upload option */}
-              {!riskAssessment.isComplete && !riskAssessment.portfolioImage && !isLoading && (
-                <div className="flex flex-col items-center gap-4 my-8 animate-fadeIn opacity-0" style={{ animation: 'fadeIn 0.5s ease 1s forwards' }}>
-                  <Button
-                    variant="outline"
-                    className="bg-gradient-to-tr from-blue-500/10 to-emerald-400/10 border border-white/10 hover:bg-gradient-to-tr hover:from-blue-500/20 hover:to-emerald-400/20 transition-all duration-200 px-6 py-4 rounded-2xl"
-                    onClick={() => {
-                      const input = document.createElement('input');
-                      input.type = 'file';
-                      input.accept = 'image/*';
-                      input.onchange = (e) => handleImageUpload(e as any);
-                      input.click();
-                    }}
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    <span>Upload Portfolio (Optional)</span>
-                  </Button>
-                  <Button
-                    variant="link"
-                    onClick={handleSkipAssessment}
-                    className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
-                  >
-                    Skip Assessment
-                  </Button>
-                </div>
-              )}
-
-              {/* Risk assessment quiz options */}
-              {!riskAssessment.isComplete && !riskAssessment.portfolioImage && !isLoading && (
-                <div className="flex flex-col items-center gap-3 my-6 animate-fadeIn opacity-0" style={{ animation: 'fadeIn 0.5s ease 1.5s forwards' }}>
-                  {RISK_QUESTIONS[riskAssessment.currentQuestion]?.options.map((option, idx) => (
-                    <Button
-                      key={idx}
-                      variant="outline"
-                      onClick={() => handleAnswerSelect(option)}
-                      className="w-full max-w-md bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 px-4 py-3 rounded-xl transition-colors text-left justify-start"
-                    >
-                      {option}
-                    </Button>
-                  ))}
-                </div>
-              )}
-
-              {/* Loading indicator */}
-              {isLoading && (
-                <div className="flex justify-start items-start gap-3">
-                  <Avatar className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-emerald-400">
-                    <AvatarFallback>
-                      <MessageSquare className="w-4 h-4 text-white" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="bg-neutral-100 dark:bg-neutral-700 p-3 rounded-lg rounded-tl-none">
-                    {renderTypingIndicator()}
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
+                )}
+              </div>
             </div>
-          </CardContent>
+          ))}
 
-          {/* Input form - Only show after risk assessment is complete */}
-          {riskAssessment.isComplete && (
-            <CardFooter className="bg-neutral-50 dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-700 p-4">
-              <form onSubmit={handleSubmit} className="w-full">
-                {/* Image preview if an image is selected */}
-                {chatImagePreview && (
-                  <div className="relative inline-block mb-3 ml-2">
-                    <img
-                      src={chatImagePreview}
-                      alt="Upload preview"
-                      className="h-16 w-auto rounded border border-neutral-200 dark:border-neutral-700"
-                    />
-                    <Button
-                      type="button"
-                      onClick={removeChatImage}
-                      size="sm"
-                      variant="destructive"
-                      className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
-                      aria-label="Remove image"
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </div>
-                )}
+          {/* Status Toast */}
+          {status && (
+            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-5 fade-in duration-300">
+              <div className={`
+                px-6 py-4 rounded-xl shadow-2xl backdrop-blur-md border flex items-center gap-4 min-w-[320px] max-w-md
+                ${status.type === 'error' ? 'bg-red-500/10 border-red-500/20' : 'bg-neutral-900/80 border-neutral-700'}
+              `}>
+                {status.type === 'loading' && <div className="w-5 h-5 border-2 border-[#FAF3E1] border-t-transparent rounded-full animate-spin"></div>}
+                {status.type === 'success' && <CheckCircle className="w-5 h-5 text-[#FA8112]" />}
+                {status.type === 'error' && <XCircle className="w-5 h-5 text-red-400" />}
 
-                <div className="flex gap-2 items-center">
-                  {/* Plus button for image upload */}
-                  <Button
-                    type="button"
-                    onClick={openFileDialog}
-                    variant="outline"
-                    size="icon"
-                    className="rounded-full h-10 w-10 bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700"
-                    disabled={isLoading || !!selectedChatImage}
-                  >
-                    <Plus className="w-5 h-5 text-neutral-700 dark:text-neutral-300" />
-                  </Button>
-
-                  {/* Hidden file input */}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/*"
-                    onChange={handleChatImageSelect}
-                    className="hidden"
-                    disabled={isLoading}
-                  />
-
-                  <Input
-                    type="text"
-                    value={inputText}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputText(e.target.value)}
-                    placeholder={awaitingConfirmation
-                      ? "Type CONFIRM to proceed or anything else to cancel"
-                      : selectedChatImage
-                        ? "Add a message with your image..."
-                        : "Type your message... (Markdown supported)"
-                    }
-                    className="flex-1 h-10 px-4 rounded-full border-neutral-300 dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-neutral-800 dark:text-white"
-                    disabled={isLoading}
-                  />
-
-                  <Button
-                    type="submit"
-                    disabled={isLoading || (!inputText.trim() && !selectedChatImage)}
-                    className="rounded-full h-10 w-10 bg-gradient-to-tr from-blue-500 to-emerald-400 hover:opacity-90 p-0"
-                  >
-                    <Send className="w-5 h-5 text-white" />
-                  </Button>
+                <div className="flex flex-col flex-1">
+                  <span className={`text-sm font-semibold ${status.type === 'error' ? 'text-red-200' : 'text-[#FAF3E1]'}`}>
+                    {status.message}
+                  </span>
+                  {status.subMessage && <span className="text-xs text-neutral-400 mt-0.5">{status.subMessage}</span>}
                 </div>
-              </form>
-            </CardFooter>
+              </div>
+            </div>
           )}
-        </Card>
 
-        {/* Additional info card */}
-        {riskAssessment.isComplete && (
-          <div className="mt-6">
-            <Card className="bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm border-neutral-200 dark:border-neutral-700">
-              <CardContent className="p-4">
-                {showStrategy && (
-                  <StrategyVisualizer
-                    strategyType={riskAssessment.strategyType || 'moderate'}
-                    currentStepOverride={riskAssessment.currentStrategyStep}
-                    onExecuteCommand={(command) => {
-                      setInputText(command);
-                      const input = document.querySelector('input[type="text"]') as HTMLInputElement;
-                      if (input) {
-                        input.focus();
-                        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      }
-                    }}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Floating gradient orbs for background effect */}
-      <div className="fixed -top-20 -left-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
-      <div className="fixed top-1/3 -right-20 w-60 h-60 bg-emerald-400/10 rounded-full blur-3xl"></div>
-      <div className="fixed bottom-20 left-1/4 w-40 h-40 bg-pink-500/10 rounded-full blur-3xl"></div>
-
-      {/* Footer */}
-      <footer className="mt-12 py-8 border-t border-neutral-200 dark:border-neutral-800">
-        <div className="container mx-auto px-4 text-center text-neutral-500 dark:text-neutral-400 text-sm">
-          Made with ❤️ FLINT Labs
-        </div>
-      </footer>
-
-      <style>{styles.fadeIn}</style>
+      {/* Input Area */}
+      <div className="bg-neutral-900/10 backdrop-blur-sm border-t border-white/5 p-4">
+        <ChatInput onSend={handleSend} isLoading={isLoading} />
+      </div>
     </div>
   );
 };

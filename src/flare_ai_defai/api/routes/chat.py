@@ -154,23 +154,23 @@ class ChatRouter:
                 if not message_text:
                     return {"response": "Message cannot be empty"}
 
-                # If an image file is provided, handle it
+                # If an image/file is provided, handle it
                 if image is not None:
-                    image_data = await image.read()
-                    mime_type = image.content_type or "image/jpeg"
+                    file_data = await image.read()
+                    mime_type = image.content_type or "application/octet-stream"
 
-                    # Special handling for portfolio analysis
+                    # Special handling for portfolio analysis (still requires image conceptually)
                     if message_text == "analyze-portfolio":
                         # Get portfolio analysis prompt
                         prompt, _, schema = self.prompts.get_formatted_prompt(
                             "portfolio_analysis"
                         )
 
-                        # Send message with image using AI - use the image's actual MIME type
-                        response = await self.ai.send_message_with_image(
+                        # Send message with file using AI
+                        response = await self.ai.send_message_with_attachment(
                             prompt,
-                            image_data,
-                            mime_type,  # Use the actual image MIME type
+                            file_data,
+                            mime_type,
                         )
 
                         # Parse and validate response
@@ -208,9 +208,9 @@ class ChatRouter:
                                 text="Sorry, I was unable to properly analyze the portfolio image. Please try again.",
                             )
 
-                    # Default image handling
-                    response = await self.ai.send_message_with_image(
-                        message_text, image_data, mime_type
+                    # Default file handling
+                    response = await self.ai.send_message_with_attachment(
+                        message_text, file_data, mime_type
                     )
                     return {"response": response.text}
 
