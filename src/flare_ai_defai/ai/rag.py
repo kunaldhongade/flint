@@ -54,7 +54,18 @@ class RAGProcessor:
 
         # Load documents if path provided
         if knowledge_base_path:
-            self._load_documents(knowledge_base_path)
+            # Check if we already have documents loaded
+            if len(self.rag_system.vector_store.documents) > 0:
+                self.logger.info("Vector store loaded from disk. Skipping initial ingestion.")
+            else:
+                self._load_documents(knowledge_base_path)
+
+    def reload_knowledge_base(self, path: str | None = None) -> dict:
+        """Reload the knowledge base, clearing existing data."""
+        path = path or "src/data"
+        self.rag_system.vector_store.clear()
+        self._load_documents(path)
+        return {"count": len(self.rag_system.vector_store.documents)}
 
     def _load_documents(self, path: str) -> None:
         """Load documents from CSV files in the specified directory

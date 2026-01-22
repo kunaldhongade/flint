@@ -6,7 +6,7 @@ with Google's Generative AI service. It handles chat sessions, content generatio
 and message management while maintaining a consistent AI personality.
 """
 
-from typing import Any, override
+from typing import Any
 
 import google.generativeai as genai
 import structlog
@@ -88,7 +88,7 @@ class GeminiProvider(BaseAIProvider):
         self.logger = logger.bind(service="gemini")
         self.rag_processor = RAGProcessor(kwargs.get("knowledge_base_path"))
 
-    @override
+    # @override
     def reset(self) -> None:
         """
         Reset the provider state.
@@ -101,7 +101,7 @@ class GeminiProvider(BaseAIProvider):
             "reset_gemini", chat=self.chat, chat_history=self.chat_history
         )
 
-    @override
+    # @override
     def generate(
         self,
         prompt: str,
@@ -151,7 +151,7 @@ class GeminiProvider(BaseAIProvider):
             },
         )
 
-    @override
+    # @override
     def send_message(
         self,
         msg: str,
@@ -185,7 +185,7 @@ class GeminiProvider(BaseAIProvider):
             },
         )
 
-    @override
+    # @override
     async def send_message_with_image(
         self, msg: str, image: bytes, mime_type: str
     ) -> ModelResponse:

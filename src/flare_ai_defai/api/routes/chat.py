@@ -29,7 +29,9 @@ from flare_ai_defai.blockchain.sflr_staking import (
     parse_stake_command,
     stake_flr_to_sflr,
 )
+from flare_ai_defai.blockchain.ftso_context import get_ftso_context
 from flare_ai_defai.prompts import PromptService, SemanticRouterResponse
+from flare_ai_defai.interceptor import DecisionInterceptor
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -126,7 +128,9 @@ class ChatRouter:
         )
 
         # Initialize BlazeSwap handler with provider URL from environment
+        # Initialize BlazeSwap handler with provider URL from environment
         self.blazeswap = BlazeSwapHandler(web3_provider_url)
+        self.interceptor = DecisionInterceptor()
         self._setup_routes()
 
     def _setup_routes(self) -> None:
@@ -214,49 +218,100 @@ class ChatRouter:
                 if wallet_address:
                     self.blockchain.address = wallet_address
 
+                # Initialize action source
+                ai_action = "CONVERSATIONAL"
+                handler_response = {}
+
                 # Check for direct commands first
                 words = message_text.lower().split()
                 if words:
                     command = words[0]
-                    # Direct command routing
+                    # Map commands to actions
+                    command_map = {
+                        "swap": "SWAP",
+                        "balance": "CHECK_BALANCE",
+                        "check": "CHECK_BALANCE", 
+                        "send": "SEND",
+                        "stake": "STAKE",
+                        "pool": "POOL",
+                        "risk": "RISK",
+                        "attest": "ATTEST",
+                        "help": "HELP"
+                    }
+
                     if command == "perp":
-                        return {
+                         handler_response = {
                             "response": "Perpetuals trading is not supported. Please use BlazeSwap for token swaps."
                         }
-                    if command == "swap":
-                        return await self.handle_swap_token(message_text)
-                    if command == "universal":
-                        return {
+                    elif command == "universal":
+                         handler_response = {
                             "response": "Universal router swaps have been removed. Please use 'swap' command for BlazeSwap trading."
                         }
-                    if command == "balance" or command == "check":
-                        return await self.handle_balance_check(message_text)
-                    if command == "send":
-                        return await self.handle_send_token(message_text)
-                    if command == "stake":
-                        # Directly handle stake command without semantic routing
-                        return await self.handle_stake_command(message_text)
-                    if command == "pool":
-                        return await self.handle_add_liquidity(message_text)
-                    if command == "risk":
-                        return await self.handle_risk_assessment(message_text)
-                    if command == "attest":
-                        return await self.handle_attestation(message_text)
-                    if command == "help":
-                        return await self.handle_help_command()
+                    elif command in command_map:
+                        ai_action = command_map[command]
+                        # Dispatch to strict handler (we recreate the routing logic here slightly for interception)
+                        if command == "swap":
+                            handler_response = await self.handle_swap_token(message_text)
+                        elif command in ["balance", "check"]:
+                            handler_response = await self.handle_balance_check(message_text)
+                        elif command == "send":
+                            handler_response = await self.handle_send_token(message_text)
+                        elif command == "stake":
+                            handler_response = await self.handle_stake_command(message_text)
+                        elif command == "pool":
+                            handler_response = await self.handle_add_liquidity(message_text)
+                        elif command == "risk":
+                            handler_response = await self.handle_risk_assessment(message_text)
+                        elif command == "attest":
+                            handler_response = await self.handle_attestation(message_text)
+                        elif command == "help":
+                            handler_response = await self.handle_help_command()
+                
+                # If no direct command served, use semantic routing
+                if not handler_response:
+                    prompt, mime_type, schema = self.prompts.get_formatted_prompt(
+                        "semantic_router", user_input=message_text
+                    )
+                    route_response = self.ai.generate(
+                        prompt=prompt, response_mime_type=mime_type, response_schema=schema
+                    )
+                    route = SemanticRouterResponse(route_response.text)
+                    ai_action = route.value
+                    handler_response = await self.route_message(route, message_text)
 
-                # If no direct command match, use semantic routing
-                prompt, mime_type, schema = self.prompts.get_formatted_prompt(
-                    "semantic_router", user_input=message_text
-                )
-                route_response = self.ai.generate(
-                    prompt=prompt, response_mime_type=mime_type, response_schema=schema
-                )
-                route = SemanticRouterResponse(route_response.text)
+                # --- INTERCEPTION POINT ---
+                if "response" in handler_response:
+                    try:
+                        # Fetch FTSO context if relevant
+                        ftso_data = {"ftso_feed_id": None, "ftso_round_id": None}
+                        if str(ai_action) in ["SWAP", "STAKE", "POOL", "SEND"]:
+                             # Heuristic: Default to FLR context if relevant action, or look for token
+                             target_token = "FLR"
+                             # Simple check for other tokens
+                             for t in ["USDC", "WETH", "BTC", "USDT"]:
+                                 if t in message_text.upper():
+                                     target_token = t
+                                     break
+                             ftso_data = await get_ftso_context(self.blockchain, target_token)
 
-                # Route to appropriate handler
-                handler_response = await self.route_message(route, message_text)
-                return handler_response  # Return the handler response directly
+                        decision_packet = self.interceptor.intercept(
+                            wallet_address=wallet_address or "0x0000000000000000000000000000000000000000",
+                            ai_action=str(ai_action),
+                            user_input=message_text,
+                            ai_response_text=handler_response["response"],
+                            transaction_data=handler_response.get("transaction"),
+                            ftso_feed_id=ftso_data.get("ftso_feed_id"),
+                            ftso_round_id=ftso_data.get("ftso_round_id")
+                        )
+                        # Attach packet to response
+                        handler_response["decision_packet"] = decision_packet.model_dump()
+                        from flare_ai_defai.settings import settings
+                        handler_response["decision_logger_address"] = settings.decision_logger_address
+                    except Exception as e:
+                        self.logger.error("interceptor_failed", error=str(e))
+                        # Fail open or closed? For PoC, log and proceed.
+                
+                return handler_response
 
             except Exception as e:
                 self.logger.error("message_handling_failed", error=str(e))

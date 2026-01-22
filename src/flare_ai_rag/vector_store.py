@@ -146,6 +146,18 @@ class VectorStoreManager:
             self.metadatas = []
             self.embeddings = []
 
+    def clear(self):
+        """Clear all data from the vector store and disk."""
+        self.documents = []
+        self.metadatas = []
+        self.embeddings = []
+        if self.index_path.exists():
+            os.remove(self.index_path)
+        if self.metadata_path.exists():
+            os.remove(self.metadata_path)
+        # Re-initialize index
+        self._init_index()
+
     def _save_data(self):
         """Save all data to disk."""
         try:
