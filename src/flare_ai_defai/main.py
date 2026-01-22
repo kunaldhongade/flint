@@ -23,7 +23,10 @@ from flare_ai_defai import (
     PromptService,
     Vtpm,
 )
+from flare_ai_defai.api.middleware.rate_limit import RateLimitMiddleware
 from flare_ai_defai.settings import settings
+from flare_ai_defai.api.routes.trust import router as trust_router
+from flare_ai_defai.api.routes.verify import router as verify_router
 
 logger = structlog.get_logger(__name__)
 
@@ -68,6 +71,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    
+    # Add Rate Limiting for Trust APIs
+    app.add_middleware(RateLimitMiddleware)
 
     # Initialize chat router
     chat = ChatRouter(
@@ -83,6 +89,25 @@ def create_app() -> FastAPI:
 
     # Register chat routes with API
     app.include_router(chat.router, prefix="/api/routes/chat", tags=["chat"])
+    # Both trust routers share /api/trust prefix defined internally or here?
+    # verify.py defines prefix="/trust". trust.py defines prefix="/trust".
+    # We mount them under /api (so /api/trust/...)
+    # But include_router arguments override? Or combine?
+    # safe way: include_router(router, prefix="/api") if router has "/trust".
+    # trust_router has prefix="/trust".
+    # verify_router has prefix="/verify"?? No, I put "/trust" in verify.py too.
+    # I should verify verify.py content.
+    # "router = APIRouter(prefix="/trust", tags=["trust"])"
+    # So app.include_router(verify_router, prefix="/api") -> /api/trust/verify/...
+    app.include_router(trust_router, prefix="/api")
+    app.include_router(verify_router, prefix="/api")
+    
+    # Register RAG management routes
+    from flare_ai_defai.api.routes.rag import router as rag_router
+    app.include_router(rag_router, prefix="/api/rag", tags=["rag"])
+    
+    # Store chat router in app state for access by other routes (e.g. RAG)
+    app.state.chat_router = chat
 
     return app
 

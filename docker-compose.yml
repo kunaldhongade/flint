@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: flare-ai-defai
+    container_name: flare-ai
     ports:
       - "80:80"
     env_file:

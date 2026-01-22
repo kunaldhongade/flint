@@ -1,0 +1,21 @@
+{
+    "name": "flint-contracts",
+    "version": "1.0.0",
+    "description": "Smart contracts for Flint Trust Layer",
+    "scripts": {
+        "test": "hardhat test",
+        "compile": "hardhat compile",
+        "deploy:coston2": "hardhat run scripts/deploy_logger.ts --network coston2"
+    },
+    "devDependencies": {
+        "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+        "dotenv": "^16.4.5",
+        "hardhat": "^2.22.15",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.5.3"
+    },
+    "dependencies": {
+        "@blazeswap/contracts": "^1.1.0",
+        "rubic-sdk": "^5.55.3"
+    }
+}

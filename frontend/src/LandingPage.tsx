@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { ArrowRight, Upload, MessageSquare} from 'lucide-react';
-import { useNavigate } from 'react-router';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
+import { ArrowRight, MessageSquare, Shield, Upload } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 interface TypingEffectResult {
   displayText: string;
@@ -92,7 +92,7 @@ export function LandingPage() {
       <nav className="container mx-auto px-4 py-6 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <div className="w-10 h-10 bg-gradient-to-tr from-blue-500 to-emerald-400 rounded-lg"></div>
-          <span className="text-xl font-bold text-neutral-900 dark:text-white">2DeFi</span>
+          <span className="text-xl font-bold text-neutral-900 dark:text-white">Flint</span>
         </div>
         <appkit-connect-button />
       </nav>
@@ -173,10 +173,15 @@ export function LandingPage() {
       </section>
 
       <footer className="bg-neutral-100 dark:bg-neutral-900 py-12">
-        <div className="container mx-auto px-4">
-          <div className="text-center text-neutral-500 dark:text-neutral-400 text-sm">
-            Made with ❤️ by Alex, Hitarth from Waterloo Blockchain
-          </div>
+        <div className="text-center text-neutral-500 dark:text-neutral-400 text-sm flex flex-col items-center gap-2">
+          <span>Made with ❤️ by FLINT Labs</span>
+          <button
+            onClick={() => navigate('/trust')}
+            className="text-xs text-neutral-600 dark:text-neutral-500 hover:text-blue-500 transition-colors flex items-center gap-1"
+          >
+            <Shield className="w-3 h-3" />
+            Verify Decisions
+          </button>
         </div>
       </footer>
 
@@ -196,7 +201,7 @@ export function LandingPage() {
           animation: float 3s ease-in-out infinite;
         }
       `}</style>
-    </div>
+    </div >
   );
 }
 

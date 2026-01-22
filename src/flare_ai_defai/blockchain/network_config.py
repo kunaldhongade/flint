@@ -15,4 +15,11 @@ NETWORK_CONFIGS: dict[str, dict[str, Any]] = {
         "explorer_url": "https://arbiscan.io",
         "native_symbol": "ETH",
     },
+    "coston2": {
+        "name": "Coston2",
+        "chain_id": 114,
+        "rpc_url": "https://coston2-api.flare.network/ext/C/rpc",
+        "explorer_url": "https://coston2-explorer.flare.network",
+        "native_symbol": "C2FLR",
+    },
 }

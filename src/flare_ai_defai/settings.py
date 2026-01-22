@@ -10,6 +10,7 @@ Environment variables take precedence over values defined in the .env file.
 """
 
 import structlog
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = structlog.get_logger(__name__)
@@ -33,9 +34,16 @@ class Settings(BaseSettings):
     # API version to use at the backend
     api_version: str = "v1"
     # URL for the Flare Network RPC provider
-    flare_rpc_url: str = "https://flare-api.flare.network/ext/C/rpc"
+    # URL for the Flare Network RPC provider
+    flare_rpc_url: str = Field(
+        default="https://flare-api.flare.network/ext/C/rpc",
+        validation_alias="WEB3_PROVIDER_URL"
+    )
     # URL for the Flare Network block explorer
     web3_explorer_url: str = "https://flare-explorer.flare.network/"
+    
+    # Contract Address for Trust Layer
+    decision_logger_address: str = "0x0000000000000000000000000000000000000000"
 
     # API settings
     api_host: str = "0.0.0.0"
