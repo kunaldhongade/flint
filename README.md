@@ -1,101 +1,291 @@
-# FLINT: Flare Intelligence Network for Trust
+# Flare AI DeFAI
 
-[![Flare Network](https://img.shields.io/badge/Flare_Network-FFD700?style=for-the-badge&logo=flare&logoColor=black)](https://flare.network)
-[![PydanticAI](https://img.shields.io/badge/PydanticAI-v0.1.0-blue?style=for-the-badge)](https://pydantic-ai.com)
-[![License](https://img.shields.io/badge/License-Apache_2.0-green?style=for-the-badge)](LICENSE)
+Flare AI Kit template for AI x DeFi (DeFAI).
 
-**Verifiable AI Agent Infrastructure for Institutional DeFi on Flare**
+## 🚀 Key Features
 
-FLINT is a high-integrity infrastructure layer providing verifiable AI agents for DeFi yield optimization, risk management, and compliance on the Flare Network. Built on the **Flare AI Kit**, FLINT enables institutions to deploy capital with confidence through cryptographically attested AI decisions and human-readable audit trails.
+- **Secure AI Execution**  
+  Runs within a Trusted Execution Environment (TEE) featuring remote attestation support for robust security.
 
----
+- **Built-in Chat UI**  
+  Interact with your AI via a TEE-served chat interface.
 
-## ✨ Core Pillars
+- **Flare Blockchain and Wallet Integration**  
+  Perform token operations and generate wallets from within the TEE.
 
-### 🤖 Verifiable AI Agents
-Agents run within **Trusted Execution Environments (TEEs)** via GCP Confidential Space. Every decision is backed by a **vTPM-bound attestation**, ensuring the AI logic has not been tampered with.
+- **Gemini 2.0 + over 300 LLMs supported**  
+  Utilize Google Gemini’s latest model with structured query support for advanced AI functionalities.
 
-### 📊 Institutional Yield & Risk
-Unified intelligence across Flare core protocols (**FAssets, FTSO, FDC, Stake**). FLINT's Risk & Policy agents evaluate strategies against custom institutional constraints in real-time.
+<img width="500" alt="Artemis" src="https://github.com/user-attachments/assets/921fbfe2-9d52-496c-9b48-9dfc32a86208" />
 
-### 🔒 Transparent Governance (FYIP)
-The Flare Yield Intelligence Platform (FYIP) is our flagship interface, providing explainable AI logs, real-time risk scoring, and a complete audit trail for compliance officers.
+## 🎯 Getting Started
 
----
+You can deploy Flare AI DeFAI using Docker (recommended) or set up the backend and frontend manually.
 
-## 🏗️ Monorepo Architecture
+### Environment Setup
 
-```bash
-flint/
-├── packages/
-│   ├── ai/          # Verifiable AI Agents (Python + Flare AI Kit + PydanticAI)
-│   ├── backend/     # Institutional API Gateway (Node.js + TypeScript)
-│   ├── frontend/    # FYIP Dashboard (React + TypeScript)
-│   ├── contracts/   # On-chain Attestation & Governance (Solidity)
-│   └── shared/      # Common Domain Models & Types
-├── docs/            # Comprehensive Technical Documentation
-└── infra/           # TEE Manifests & Container Orchestration
+1. **Prepare the Environment File:**  
+   Rename `.env.example` to `.env` and update the variables accordingly.
+   > **Tip:** Set `SIMULATE_ATTESTATION=true` for local testing.
+
+### Build using Docker (Recommended)
+
+The Docker setup mimics a TEE environment and includes an Nginx server for routing, while Supervisor manages both the backend and frontend services in a single container.
+
+1. **Build the Docker Image:**
+
+   ```bash
+   docker build -t flare-ai-defai .
+   ```
+
+2. **Run the Docker Container:**
+
+   ```bash
+   docker run -p 80:80 -it --env-file .env flare-ai-defai
+   ```
+
+3. **Access the Frontend:**  
+   Open your browser and navigate to [http://localhost:80](http://localhost:80) to interact with the Chat UI.
+
+## 🛠 Build Manually
+
+Flare AI DeFAI is composed of a Python-based backend and a JavaScript frontend. Follow these steps for manual setup:
+
+#### Backend Setup
+
+1. **Install Dependencies:**  
+   Use [uv](https://docs.astral.sh/uv/getting-started/installation/) to install backend dependencies:
+
+   ```bash
+   uv sync --all-extras
+   ```
+
+2. **Start the Backend:**  
+   The backend runs by default on `0.0.0.0:8080`:
+
+   ```bash
+   uv run start-backend
+   ```
+
+#### Frontend Setup
+
+1. **Install Dependencies:**  
+   In the `chat-ui/` directory, install the required packages using [npm](https://nodejs.org/en/download):
+
+   ```bash
+   cd chat-ui/
+   npm install
+   ```
+
+2. **Configure the Frontend:**  
+   Update the backend URL in `chat-ui/src/App.js` for testing:
+
+   ```js
+   const BACKEND_ROUTE = "http://localhost:8080/api/routes/chat/";
+   ```
+
+   > **Note:** Remember to change `BACKEND_ROUTE` back to `'api/routes/chat/'` after testing.
+
+3. **Start the Frontend:**
+
+   ```bash
+   npm start
+   ```
+
+## 📁 Repo Structure
+
+```plaintext
+src/flare_ai_defai/
+├── ai/                     # AI Provider implementations
+│   ├── base.py            # Base AI provider interface
+│   ├── gemini.py          # Google Gemini integration
+│   └── openrouter.py      # OpenRouter integration
+├── api/                    # API layer
+│   ├── middleware/        # Request/response middleware
+│   └── routes/           # API endpoint definitions
+├── attestation/           # TEE attestation
+│   ├── vtpm_attestation.py   # vTPM client
+│   └── vtpm_validation.py    # Token validation
+├── blockchain/              # Blockchain operations
+│   ├── explorer.py        # Chain explorer client
+│   └── flare.py          # Flare network provider
+├── prompts/              # AI system prompts & templates
+│    ├── library.py        # Prompt module library
+│    ├── schemas.py        # Schema definitions
+│    ├── service.py        # Prompt service module
+│    └── templates.py       # Prompt templates
+├── exceptions.py      # Custom errors
+├── main.py          # Primary entrypoint
+└── settings.py       # Configuration settings error
 ```
 
----
+## 🚀 Deploy on TEE
 
-## 🚀 Getting Started
+Deploy on a [Confidential Space](https://cloud.google.com/confidential-computing/confidential-space/docs/confidential-space-overview) using AMD SEV.
 
 ### Prerequisites
-- Node.js >= 18.0.0
-- Python >= 3.12 (with `uv` recommended)
-- Docker (for TEE simulation)
-- Flare Network RPC Access
 
-### Rapid Development
+- **Google Cloud Platform Account:**  
+  Access to the [`verifiable-ai-hackathon`](https://console.cloud.google.com/welcome?project=verifiable-ai-hackathon) project is required.
+
+- **Gemini API Key:**  
+  Ensure your [Gemini API key](https://aistudio.google.com/app/apikey) is linked to the project.
+
+- **gcloud CLI:**  
+  Install and authenticate the [gcloud CLI](https://cloud.google.com/sdk/docs/install).
+
+### Environment Configuration
+
+1. **Set Environment Variables:**  
+   Update your `.env` file with:
+
+   ```bash
+   TEE_IMAGE_REFERENCE=ghcr.io/flare-foundation/flare-ai-defai:main  # Replace with your repo build image
+   INSTANCE_NAME=<PROJECT_NAME-TEAM_NAME>
+   ```
+
+2. **Load Environment Variables:**
+
+   ```bash
+   source .env
+   ```
+
+   > **Reminder:** Run the above command in every new shell session or after modifying `.env`. On Windows, we recommend using [git BASH](https://gitforwindows.org) to access commands like `source`.
+
+3. **Verify the Setup:**
+
+   ```bash
+   echo $TEE_IMAGE_REFERENCE # Expected output: Your repo build image
+   ```
+
+### Deploying to Confidential Space
+
+Run the following command:
+
 ```bash
-# Install core dependencies
-npm install
-
-# Start all services (Frontend, Backend, AI Agent)
-npm run dev
+gcloud compute instances create $INSTANCE_NAME \
+  --project=verifiable-ai-hackathon \
+  --zone=us-west1-b \
+  --machine-type=n2d-standard-2 \
+  --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
+  --metadata=tee-image-reference=$TEE_IMAGE_REFERENCE,\
+tee-container-log-redirect=true,\
+tee-env-GEMINI_API_KEY=$GEMINI_API_KEY,\
+tee-env-GEMINI_MODEL=$GEMINI_MODEL,\
+tee-env-WEB3_PROVIDER_URL=$WEB3_PROVIDER_URL,\
+tee-env-SIMULATE_ATTESTATION=false \
+  --maintenance-policy=MIGRATE \
+  --provisioning-model=STANDARD \
+  --service-account=confidential-sa@verifiable-ai-hackathon.iam.gserviceaccount.com \
+  --scopes=https://www.googleapis.com/auth/cloud-platform \
+  --min-cpu-platform="AMD Milan" \
+  --tags=flare-ai,http-server,https-server \
+  --create-disk=auto-delete=yes,\
+boot=yes,\
+device-name=$INSTANCE_NAME,\
+image=projects/confidential-space-images/global/images/confidential-space-debug-250100,\
+mode=rw,\
+size=11,\
+type=pd-standard \
+  --shielded-secure-boot \
+  --shielded-vtpm \
+  --shielded-integrity-monitoring \
+  --reservation-affinity=any \
+  --confidential-compute-type=SEV
 ```
 
-### Component Commands
-| Component | Dev Command | Test Command |
-| :--- | :--- | :--- |
-| **AI Agents** | `npm run dev:ai` | `npm run test:ai` |
-| **Backend** | `npm run dev:backend` | `npm run test:backend` |
-| **Frontend** | `npm run dev:frontend` | `npm test` |
-| **Contracts** | `cd packages/contracts && npx hardhat compile` | `npm run test:contracts` |
+#### Post-deployment
 
----
+1. After deployment, you should see an output similar to:
 
-## 📚 Documentation
+   ```plaintext
+   NAME          ZONE           MACHINE_TYPE    PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP    STATUS
+   defai-team1   us-central1-c  n2d-standard-2               10.128.0.18  34.41.127.200  RUNNING
+   ```
 
-Detailed technical documentation is available in the `docs` directory:
+2. It may take a few minutes for Confidential Space to complete startup checks. You can monitor progress via the [GCP Console](https://console.cloud.google.com/welcome?project=verifiable-ai-hackathon) logs.
+   Click on **Compute Engine** → **VM Instances** (in the sidebar) → **Select your instance** → **Serial port 1 (console)**.
 
-- [**Architecture Overview**](docs/ARCHITECTURE.md): Deep dive into the TEE, vTPM, and FTSO integration.
-- [**Compliance Readiness**](docs/COMPLIANCE_READINESS.md): How FLINT maps to regulatory frameworks.
+   When you see a message like:
 
----
+   ```plaintext
+   INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+   ```
 
-## 🛠️ Flare Ecosystem Integration
+   the container is ready. Navigate to the external IP of the instance (visible in the **VM Instances** page) to access the Chat UI.
 
-FLINT is purpose-built to leverage the full Flare stack:
+### 🔧 Troubleshooting
 
-- **FAssets**: Multi-asset yield strategies (FXRP, FUSD, BTC, DOGE).
-- **FTSO**: High-fidelity, real-time price feeds for Risk Agent evaluation.
-- **FDC**: Cross-chain state attestation and event verification.
-- **Confidential Space**: Verifiable execution using Flare AI Kit patterns.
+If you encounter issues, follow these steps:
 
----
+1. **Check Logs:**
 
-## 👥 Professional Team
+   ```bash
+   gcloud compute instances get-serial-port-output $INSTANCE_NAME --project=verifiable-ai-hackathon
+   ```
 
-- **Kunal Dhongade** – Full-Stack Blockchain Engineer
-- **Vidip Ghosh** – AI Engineer & Full-Stack Developer
-- **Fredrik Parker** – UI/UX Designer
-- **Swarnil Kokulwar** – Smart Contract Engineer
+2. **Verify API Key(s):**  
+   Ensure that all API Keys are set correctly (e.g. `GEMINI_API_KEY`).
 
----
+3. **Check Firewall Settings:**  
+   Confirm that your instance is publicly accessible on port `80`.
 
-## 📜 License & Compliance
+## 💡 Next Steps
 
-Licensed under the [Apache License 2.0](LICENSE). 
-*FLINT is designed to assist in regulatory compliance (MiCA, SOC2) through its immutable decision logging architecture.*
+Once your instance is running, access the Chat UI using its public IP address. Here are some example interactions to try:
+
+- **"Create an account for me"**
+- **"Transfer 10 C2FLR to 0x000000000000000000000000000000000000dEaD"**
+- **"Show me your remote attestation"**
+
+### Future Upgrades
+
+- **TLS Communication:**  
+  Implement RA-TLS for encrypted communication.
+
+- **Expanded Flare Ecosystem Support:**
+  - **Token Swaps:** via [SparkDEX](http://sparkdex.ai)
+  - **Borrow-Lend:** via [Kinetic](https://linktr.ee/kinetic.market)
+  - **Trading Strategies:** via [RainDEX](https://www.rainlang.xyz)
+
+### Example Use Cases & Project Ideas
+
+Below are several detailed project ideas demonstrating how the template can be used to build autonomous AI agents for Flare's DeFi ecosystem:
+
+#### NLP interface for Flare ecosystem
+
+Implement a natural language command parser that translates user intent into specific protocol actions, e.g.:
+
+```plaintext
+"Swap 100 FLR to USDC and deposit as collateral on Kinetic" →
+{
+  action: ["swap", "deposit"],
+  protocols: ["SparkDEX", "Kinetic"],
+  amounts: [100],
+  tokens: ["FLR", "USDC"]
+}
+```
+
+- Add cross-protocol optimization features:
+
+  - Automatic route splitting across DEXs for better prices
+  - Gas optimization by batching multiple transactions
+  - Yield optimization by comparing lending rates across protocols
+
+- Automated token swaps and integrations with Flare ecosystem applications:
+  - [SparkDEX](http://sparkdex.ai/): Token swaps + Perpetual futures
+  - [Kinetic](http://kinetic.market/): Borrow-lend protocol
+  - [RainDEX](http://rainlang.xyz): Trading strategies
+  - [Cycle](https://cyclo.finance): Liquidation-free leverage
+
+### RAG Knowledge
+
+Connect the DeFAI agent with the RAG from [`flare-ai-rag`](https://github.com/flare-foundation/flare-ai-rag) trained on datasets such as:
+
+- [Flare Developer Hub](https://dev.flare.network)
+- [Flare Website](https://flare.network)
+- [Flare X](https://x.com/FlareNetworks)
+
+### Transaction simulation
+
+Use a transaction simulation framework such as [Tenderly Simulator](https://tenderly.co/transaction-simulator) to show users the expected outcome of their transaction.
