@@ -10,7 +10,6 @@ interface TrustProofPanelProps {
 
 export const TrustProofPanel: React.FC<TrustProofPanelProps> = ({
     decisionId,
-    decisionHash,
     txHash,
     timestamp
 }) => {

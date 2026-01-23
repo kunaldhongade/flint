@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     # Contract Address for Trust Layer
     decision_logger_address: str = "0x0000000000000000000000000000000000000000"
 
+    # Pinata IPFS Keys
+    pinata_api_key: str = ""
+    pinata_secret_api_key: str = ""
+
     # API settings
     api_host: str = "0.0.0.0"
     api_port: int = 8000

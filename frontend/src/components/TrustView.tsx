@@ -2,7 +2,7 @@ import swearTrust from '@/assets/swear-trust.svg';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { CheckCircle, Clock, Link as LinkIcon, Lock, Search, Shield } from 'lucide-react';
+import { CheckCircle, Clock, ExternalLink, Link as LinkIcon, Lock, Search, Shield } from 'lucide-react';
 import React, { useState } from 'react';
 
 const TrustView: React.FC = () => {

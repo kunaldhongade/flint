@@ -18,7 +18,7 @@ router = APIRouter(prefix="/trust", tags=["trust"])
 
 def get_abi():
     try:
-        abi_path = Path("abi/DecisionLogger.json")
+        abi_path = Path("abi/AIDecisionRegistry.json")
         if not abi_path.exists(): return []
         return json.loads(abi_path.read_text())
     except Exception: return []

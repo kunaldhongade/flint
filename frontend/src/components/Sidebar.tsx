@@ -1,17 +1,23 @@
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
-import { ExternalLink, History, MessageSquare, Plus, Settings, Shield } from 'lucide-react';
+import { ExternalLink, History, MessageSquare, Plus, Settings, Shield, Trash2 } from 'lucide-react';
 import React from 'react';
-import { NavLink, useLocation } from 'react-router';
+import { NavLink, useLocation, useNavigate } from 'react-router';
 import flintLogo from '../assets/logo.svg';
 import walletIcon from '../assets/wallet.svg';
+import { deleteSession, getSessions } from '../lib/chatHistory';
+import { DeleteConfirmModal } from './ui/DeleteConfirmModal';
+
 
 interface SidebarProps {
     className?: string;
+    onDeleteRequest?: (item: { id: string; title: string }) => void;
+    onNewChatAlert?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ className = '', onDeleteRequest, onNewChatAlert }) => {
     const { isConnected } = useAppKitAccount();
     const location = useLocation();
+    const navigate = useNavigate();
 
     const [history, setHistory] = React.useState<any[]>([]);
 
@@ -41,35 +47,46 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
             </NavLink>
 
             <div className="px-3 py-2">
-                <NavLink
-                    to="/chat"
-                    end
+                <button
                     onClick={() => {
-                        // Force clear param if already on chat (NavLink handles the 'to', we just need to ensuring no param persists/reloads default)
-                        if (location.pathname === '/chat') {
-                            // Optional: Force reset if needed, but 'to="/chat"' implies no search params
+                        // Check if we're already on a new/empty chat
+                        const isOnNewChat = location.pathname === '/chat' && !location.search;
+
+                        if (isOnNewChat) {
+                            // Check if current chat has messages using localStorage
+                            const tempMessages = localStorage.getItem('flint_temp_message_count');
+                            const messageCount = tempMessages ? parseInt(tempMessages) : 1;
+
+                            if (messageCount <= 1) {
+                                // Inform user via callback to app level modal
+                                onNewChatAlert?.();
+                                return;
+                            }
                         }
+
+                        // Navigate to new chat with full page reload to clear state
+                        window.location.href = '/chat';
                     }}
-                    className={({ isActive }) => `flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 border ${isActive && !location.search ? 'bg-neutral-800 border-neutral-700 text-[#FAF3E1] shadow-sm' : 'hover:bg-neutral-800/50 border-transparent hover:text-[#FAF3E1]'}`}
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 border border-white/5 bg-neutral-800/50 hover:bg-neutral-800 text-[#FAF3E1] w-full shadow-sm group hover:border-white/10"
                 >
-                    <div className="p-1 bg-white/10 rounded-lg">
-                        <Plus className="w-4 h-4" />
+                    <div className="p-1 bg-[#FA8112]/10 rounded-lg group-hover:bg-[#FA8112]/20 transition-colors">
+                        <Plus className="w-4 h-4 text-[#FA8112]" />
                     </div>
                     <span className="font-medium text-sm">New Strategy</span>
-                </NavLink>
+                </button>
             </div>
 
             {/* Navigation */}
             <div className="px-3 py-2 flex flex-col gap-1">
                 <div className="px-3 py-2 text-xs font-semibold text-neutral-500 uppercase tracking-wider">Platform</div>
 
-                <NavLink
-                    to="/chat"
-                    className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-[#FA8112]/10 text-[#FA8112]' : 'hover:bg-neutral-800 hover:text-[#FAF3E1]'}`}
+                <button
+                    onClick={() => navigate('/chat', { replace: true })}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors w-full text-left ${location.pathname === '/chat' ? 'bg-[#FA8112]/10 text-[#FA8112]' : 'hover:bg-neutral-800 hover:text-[#FAF3E1]'}`}
                 >
                     <MessageSquare className="w-4 h-4" />
                     <span>Agent Chat</span>
-                </NavLink>
+                </button>
 
                 <NavLink
                     to="/trust"
@@ -88,22 +105,39 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
                 </div>
 
                 <div className="flex flex-col gap-1 mt-1">
-                    {history.map((item) => (
-                        <NavLink
-                            to={`/chat?session=${item.id}`}
-                            key={item.id}
-                            className={({ isActive }) => `text-left px-3 py-2 rounded-lg text-sm transition-colors truncate group relative block ${isActive && location.search === `?session=${item.id}` ? 'bg-neutral-800 text-[#FAF3E1]' : 'text-neutral-400 hover:bg-neutral-800 hover:text-[#FAF3E1]'}`}
-                        >
-                            <span className="truncate block pr-4 font-medium">{item.title}</span>
-                            <span className="text-[10px] text-neutral-600 group-hover:text-neutral-500">
-                                {new Date(item.updatedAt).toLocaleDateString()}
-                            </span>
-                        </NavLink>
+                    {history.map((item, index) => (
+                        <React.Fragment key={item.id}>
+                            <div className="relative group/item">
+                                <NavLink
+                                    to={`/chat?session=${item.id}`}
+                                    className={({ isActive }) => `text-left px-3 py-2 rounded-lg text-sm transition-colors truncate group relative block ${isActive && location.search === `?session=${item.id}` ? 'bg-neutral-800 text-[#FAF3E1]' : 'text-neutral-400 hover:bg-neutral-800 hover:text-[#FAF3E1]'}`}
+                                >
+                                    <span className="truncate block pr-8 font-medium">{item.title}</span>
+                                    <span className="text-[10px] text-neutral-600 group-hover:text-neutral-500">
+                                        {new Date(item.updatedAt).toLocaleDateString()}
+                                    </span>
+                                </NavLink>
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        onDeleteRequest?.({ id: item.id, title: item.title });
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md bg-neutral-900 hover:bg-red-500/20 text-neutral-600 hover:text-red-400 transition-all opacity-0 group-hover/item:opacity-100"
+                                    title="Delete chat"
+                                >
+                                    <Trash2 className="w-3 h-3" />
+                                </button>
+                            </div>
+                            {/* Divider between items */}
+                            {index < history.length - 1 && (
+                                <div className="mx-3 border-t border-neutral-800/50"></div>
+                            )}
+                        </React.Fragment>
                     ))}
                 </div>
             </div>
 
-            {/* Footer / User */}
             <div className="p-3 border-t border-neutral-800 mt-auto">
                 <FooterWallet />
             </div>

@@ -150,12 +150,51 @@ class ChatRouter:
                 message_text = data.get("message", "")
                 wallet_address = data.get("walletAddress")
                 image = data.get("image")  # This will be an UploadFile if provided
+                
+                # Extract selected models
+                selected_models_raw = data.get("selected_models")
+                selected_models = []
+                if selected_models_raw:
+                    try:
+                        selected_models = json.loads(selected_models_raw)
+                    except json.JSONDecodeError:
+                        pass # Ignore if not valid JSON
 
                 if not message_text:
                     return {"response": "Message cannot be empty"}
 
+                # --- EXPLICIT MODEL EXECUTION BRANCH ---
+                if selected_models and isinstance(selected_models, list) and len(selected_models) > 0:
+                    from flare_ai_defai.ai.user_selected_model_executor import execute_selected_models
+                    
+                    # Execute selected models concurrently
+                    model_results = await execute_selected_models(selected_models, message_text)
+                    
+                    # Format as agent votes for the frontend to display
+                    agent_votes = []
+                    for res in model_results:
+                        agent_votes.append({
+                            "name": res["model_id"],
+                            "role": res["role"],
+                            "decision": "approve", # Default for now, or parse from res["response_text"]
+                            "reason": res["response_text"][:200] + "..." # Truncate for UI summary
+                        })
+                    
+                    # We pick one "main" response to show in the bubble, or aggregate them.
+                    # For now, let's just show the first one or a summary.
+                    main_response = f"Executed {len(model_results)} models: {', '.join(selected_models)}.\n\nSee detailed agent breakdown below."
+                    if len(model_results) == 1:
+                        main_response = model_results[0]["response_text"]
+
+                    return {
+                        "response": main_response,
+                        "agent_votes": agent_votes
+                    }
+                # ----------------------------------------
+
                 # If an image/file is provided, handle it
                 if image is not None:
+
                     file_data = await image.read()
                     mime_type = image.content_type or "application/octet-stream"
 
@@ -334,6 +373,36 @@ class ChatRouter:
                     "message": f"Your wallet ({request.address}) has:\n{balance} {self.blockchain.native_symbol}",
                 }
             except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @self._router.post("/confirm_decision")
+        async def confirm_decision(request: Request) -> Dict[str, str]:
+            """
+            Log the final user decision and workflow to IPFS.
+            """
+            try:
+                data = await request.json()
+                trail_data = data.get("decision_trail")
+                
+                if not trail_data:
+                     raise HTTPException(status_code=400, detail="Missing decision_trail")
+
+                from flare_ai_defai.attestation.pinata_logger import pinata_logger
+                
+                # Upload to Pinata
+                cid, cid_hash = pinata_logger.upload_decision_trail(trail_data)
+                
+                if not cid:
+                    return {"status": "skipped", "message": "Logging skipped (missing config or error)"}
+
+                return {
+                    "status": "success", 
+                    "ipfs_cid": cid, 
+                    "cid_hash": cid_hash
+                }
+
+            except Exception as e:
+                self.logger.error("confirm_decision_failed", error=str(e))
                 raise HTTPException(status_code=500, detail=str(e))
 
     @property

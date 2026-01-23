@@ -28,3 +28,10 @@ export const saveSession = (session: StoredSession) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
   window.dispatchEvent(new Event("storage-update"));
 };
+
+export const deleteSession = (sessionId: string) => {
+  const sessions = getSessions();
+  const filtered = sessions.filter((s) => s.id !== sessionId);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+  window.dispatchEvent(new Event("storage-update"));
+};

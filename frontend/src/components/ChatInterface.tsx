@@ -1,15 +1,21 @@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import Lottie from 'lottie-react';
-import { CheckCircle, Clock, MessageSquare, Shield, XCircle } from 'lucide-react';
+import { CheckCircle, Clock, FileText, MessageSquare, Shield, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useAccount, useWalletClient } from 'wagmi';
-import DecisionLoggerArtifact from '../abis/DecisionLogger.json';
+import AIDecisionRegistryArtifact from '../abis/AIDecisionRegistry.json';
 import chatRobot from '../assets/chat_robot.json';
+import { useError } from '../lib/ErrorContext';
+import { useGlobalUI } from '../lib/GlobalUIContext';
+import { INITIAL_STRATEGY_STEP } from '../lib/constants';
 import { AgentDecisionPanel } from './chat/AgentDecisionPanel';
 import { ChatInput } from './chat/ChatInput';
+import { ControlPanel, Domain } from './chat/ControlPanel';
 import { ExecutionStrategyPanel, StrategyStep } from './chat/ExecutionStrategyPanel';
+import { ModelResultReviewPanel } from './chat/ModelResultReviewPanel';
 import { TrustProofPanel } from './chat/TrustProofPanel';
+
 
 // --- Types ---
 
@@ -31,11 +37,13 @@ interface Message {
   text: string;
   type: 'user' | 'bot';
   imageData?: string;
+  fileName?: string;
   isTyping?: boolean;
   agentVotes?: AgentVote[];
   consensusScore?: string;
   trustProof?: TrustProof;
   strategySteps?: StrategyStep[];
+  selectedVote?: string; // Track which model was selected
 }
 
 interface StatusState {
@@ -67,8 +75,26 @@ const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [status, setStatus] = useState<StatusState | null>(null);
   const [executingStepId, setExecutingStepId] = useState<string | null>(null);
+  const { showError } = useError();
+
+  const [selectedModels, setSelectedModels] = useState<string[] | null>(null);
+  const [domain, setDomain] = useState<Domain>('DeFi');
+  const [executionEnabled, setExecutionEnabled] = useState<boolean>(true);
+  const { openModelSelector, openFilePreview } = useGlobalUI();
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Load selected models from localStorage on mount
+  useEffect(() => {
+    const savedModels = localStorage.getItem('flint_selected_models');
+    if (savedModels) {
+      try {
+        setSelectedModels(JSON.parse(savedModels));
+      } catch (e) {
+        console.error('Failed to load saved models', e);
+      }
+    }
+  }, []);
 
   // Load Session
   useEffect(() => {
@@ -80,7 +106,8 @@ const ChatInterface: React.FC = () => {
         return;
       }
     }
-    // Default start if no session or new
+    // Default start if no session or new - clear temp count
+    localStorage.setItem('flint_temp_message_count', '1');
     setMessages([{
       text: "I am Flint, your verifiable DeFi assistant.\n\nEverything I do is debated by multiple AI agents and cryptographically proved on the Flare Network. How can I help you today?",
       type: 'bot',
@@ -110,6 +137,11 @@ const ChatInterface: React.FC = () => {
     }
   }, [messages, sessionId]);
 
+  // Track message count for New Strategy button
+  useEffect(() => {
+    localStorage.setItem('flint_temp_message_count', messages.length.toString());
+  }, [messages]);
+
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -136,40 +168,39 @@ const ChatInterface: React.FC = () => {
     if (!walletClient || !packet) return;
 
     setStatus({
-      message: "Verifying Decision",
-      subMessage: "Logging proof to Flare Data Connector...",
+      message: "Registering Decision",
+      subMessage: "Logging to AIDecisionRegistry...",
       type: "loading"
     });
 
     try {
       const cleanUuid = packet.decision_id.replace(/-/g, '');
       const decisionIdBytes32 = `0x${cleanUuid.padEnd(64, '0')}`;
-      const decisionHash = packet.decision_hash.startsWith('0x') ? packet.decision_hash : `0x${packet.decision_hash}`;
-      const modelHash = packet.model_hash.startsWith('0x') ? packet.model_hash : `0x${packet.model_hash}`;
-      const fdcProofHash = packet.fdc_proof_hash
-        ? (packet.fdc_proof_hash.startsWith('0x') ? packet.fdc_proof_hash : `0x${packet.fdc_proof_hash}`)
-        : '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+      // New parameters for AIDecisionRegistry
+      const ipfsCidHash = packet.ipfs_cid_hash?.startsWith('0x') ? packet.ipfs_cid_hash : `0x${packet.ipfs_cid_hash || '0'.repeat(64)}`;
+      const domainHash = packet.domain_hash?.startsWith('0x') ? packet.domain_hash : `0x${packet.domain_hash || '0'.repeat(64)}`;
+      const chosenModelHash = packet.chosen_model_hash?.startsWith('0x') ? packet.chosen_model_hash : `0x${packet.chosen_model_hash || '0'.repeat(64)}`;
+      const subject = packet.subject || "AI Decision";
 
       const args = [
         decisionIdBytes32,
-        decisionHash,
-        modelHash,
-        BigInt(packet.ftso_round_id || 0),
-        fdcProofHash,
-        BigInt(packet.timestamp),
-        packet.backend_signer
+        ipfsCidHash,
+        domainHash,
+        chosenModelHash,
+        subject
       ];
 
       const hash = await walletClient.writeContract({
         address: loggerAddress as `0x${string}`,
-        abi: DecisionLoggerArtifact.abi,
-        functionName: 'logDecision',
+        abi: AIDecisionRegistryArtifact.abi,
+        functionName: 'registerDecision',
         args: args
       });
 
       setStatus({
-        message: "Decision Logged",
-        subMessage: " Waiting for confirmation...",
+        message: "Decision Registered",
+        subMessage: "Waiting for confirmation...",
         type: "loading"
       });
 
@@ -178,9 +209,9 @@ const ChatInterface: React.FC = () => {
 
       return hash;
     } catch (error: any) {
-      console.error("Failed to log decision:", error);
+      console.error("Failed to register decision:", error);
       setStatus({
-        message: "Logging Failed (Non-blocking)",
+        message: "Registration Failed (Non-blocking)",
         subMessage: "Proceeding with chat...",
         type: "error"
       });
@@ -224,10 +255,32 @@ const ChatInterface: React.FC = () => {
     } catch (error: any) {
       console.error("Execution failed:", error);
       setStatus({ message: "Execution Failed", subMessage: error.message, type: "error" });
+      showError({ message: "Transaction Execution Failed", detail: error.message });
       setTimeout(() => setStatus(null), 4000);
     } finally {
       setExecutingStepId(null);
     }
+  };
+
+  const handleModelSelection = (msgIndex: number, modelName: string) => {
+    setMessages(prev => {
+      const newMsgs = [...prev];
+      newMsgs[msgIndex] = {
+        ...newMsgs[msgIndex],
+        selectedVote: modelName,
+      };
+      return newMsgs;
+    });
+  };
+
+  const handleOpenModelSelector = () => {
+    openModelSelector(selectedModels || [], handleConfirmModels);
+  };
+
+  const handleConfirmModels = (models: string[]) => {
+    setSelectedModels(models);
+    // Save to localStorage
+    localStorage.setItem('flint_selected_models', JSON.stringify(models));
   };
 
   // --- API Interaction ---
@@ -235,8 +288,11 @@ const ChatInterface: React.FC = () => {
   const handleSend = async (text: string, file: File | null) => {
     // 1. Add User Message
     const userMsg: Message = { text, type: 'user' };
-    if (file && file.type.startsWith('image/')) {
-      userMsg.imageData = URL.createObjectURL(file);
+    if (file) {
+      userMsg.fileName = file.name;
+      if (file.type.startsWith('image/')) {
+        userMsg.imageData = URL.createObjectURL(file);
+      }
     }
     addMessage(userMsg);
     setIsLoading(true);
@@ -309,10 +365,11 @@ const ChatInterface: React.FC = () => {
         strategySteps: strategySteps.length > 0 ? strategySteps : undefined
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       updateLastMessage({ text: "Sorry, I encountered an error processing your request.", isTyping: false });
       setStatus({ message: "Error", type: "error" });
+      showError({ message: "Chat interaction failed", detail: error.message || String(error) });
       setTimeout(() => setStatus(null), 3000);
     } finally {
       setIsLoading(false);
@@ -325,8 +382,23 @@ const ChatInterface: React.FC = () => {
   return (
     <div className="flex flex-col h-screen w-full max-w-5xl mx-auto bg-transparent">
       {/* Chat Stream */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth scrollbar-thin scrollbar-thumb-neutral-800">
-        <div className="flex flex-col justify-end min-h-full space-y-8">
+      <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth relative scrollbar-hide">
+
+
+
+        {/* Control Panel */}
+        {selectedModels && (
+          <div className="sticky top-0 z-20 mb-6 animate-in fade-in slide-in-from-top-2">
+            <ControlPanel
+              currentDomain={domain}
+              onDomainChange={setDomain}
+              executionEnabled={executionEnabled}
+              onExecutionToggle={setExecutionEnabled}
+            />
+          </div>
+        )}
+
+        <div className="flex flex-col space-y-4 pb-10">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex gap-4 ${msg.type === 'user' ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
               {/* Avatar */}
@@ -336,7 +408,7 @@ const ChatInterface: React.FC = () => {
                     <Lottie animationData={chatRobot} loop={true} />
                   </div>
                 ) : (
-                  <div className="w-8 h-8 rounded bg-neutral-800 flex items-center justify-center text-neutral-400">
+                  <div className="w-8 h-8 rounded bg-neutral-900 flex items-center justify-center text-neutral-400">
                     <span className="text-xs font-bold">YOU</span>
                   </div>
                 )}
@@ -350,8 +422,18 @@ const ChatInterface: React.FC = () => {
                     : 'bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-tl-none'
                   }
                       `}>
-                  {msg.imageData && (
-                    <img src={msg.imageData} alt="User upload" className="max-w-full rounded-lg mb-3 border border-neutral-700" />
+                  {(msg.imageData || msg.fileName) && (
+                    <div className="flex items-center gap-2 mb-3 p-2 bg-black/20 border border-white/5 rounded-xl w-fit group cursor-default">
+                      <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center border border-neutral-700 shrink-0">
+                        <FileText className="w-4 h-4 text-[#FA8112]" />
+                      </div>
+                      <div className="flex flex-col pr-2">
+                        <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-bold">Attachment</span>
+                        <span className="text-[11px] text-[#FAF3E1] font-medium leading-none mt-1 truncate max-w-[120px]">
+                          {msg.fileName || 'Image File'}
+                        </span>
+                      </div>
+                    </div>
                   )}
 
                   {msg.isTyping ? (
@@ -375,26 +457,59 @@ const ChatInterface: React.FC = () => {
                 {/* Bot specialized panels */}
                 {msg.type === 'bot' && !msg.isTyping && (
                   <div className="w-full space-y-4 animate-in fade-in duration-700 delay-150">
-                    {/* 1. Execution Strategy (If actionable) */}
-                    {msg.strategySteps && msg.strategySteps.length > 0 && (
-                      <ExecutionStrategyPanel
-                        steps={msg.strategySteps}
-                        onExecute={(stepId) => {
-                          const step = msg.strategySteps?.find(s => s.id === stepId);
-                          if (step) executeStrategyStep(stepId, (step as any).txData);
-                        }}
-                        isExecuting={executingStepId !== null}
+
+                    {/* 1. MODEL REVIEW STEP (Blocking) */}
+                    {msg.agentVotes && !msg.selectedVote && (
+                      <ModelResultReviewPanel
+                        results={msg.agentVotes}
+                        onSelect={(name) => handleModelSelection(idx, name)}
                       />
                     )}
 
-                    {/* 2. Agent Consensus */}
-                    {msg.agentVotes && (
-                      <AgentDecisionPanel agents={msg.agentVotes} consensusScore={msg.consensusScore || "N/A"} />
+                    {/* 2. POST-SELECTION VIEW (Authoritative) */}
+                    {msg.selectedVote && (
+                      <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg animate-in fade-in">
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <span className="text-sm text-green-200">
+                          Authoritative Model: <span className="font-bold text-white">{msg.selectedVote}</span>
+                        </span>
+                      </div>
                     )}
 
-                    {/* 3. Trust Proof */}
-                    {msg.trustProof && (
-                      <TrustProofPanel {...msg.trustProof} />
+                    {/* 3. EXECUTION & LOGS (Only after selection OR if no votes) */}
+                    {(!msg.agentVotes || msg.selectedVote) && (
+                      <>
+                        {/* Execution Strategy */}
+                        {msg.strategySteps && msg.strategySteps.length > 0 && (
+                          <>
+                            {executionEnabled && domain === 'DeFi' ? (
+                              <ExecutionStrategyPanel
+                                steps={msg.strategySteps}
+                                onExecute={(stepId) => {
+                                  const step = msg.strategySteps?.find(s => s.id === stepId);
+                                  if (step) executeStrategyStep(stepId, (step as any).txData);
+                                }}
+                                isExecuting={executingStepId !== null}
+                              />
+                            ) : (
+                              <div className="p-3 bg-neutral-900/50 border border-neutral-800 rounded-lg flex items-center justify-between text-xs text-neutral-500">
+                                <span>Action identified, but execution is disabled in {domain} / Log-Only mode.</span>
+                                <span className="font-mono px-2 py-0.5 bg-neutral-800 rounded text-neutral-400">LOGGED</span>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Agent Consensus (Show if no selection flow) */}
+                        {msg.agentVotes && msg.selectedVote && (
+                          <AgentDecisionPanel agents={msg.agentVotes} consensusScore={msg.consensusScore || "N/A"} />
+                        )}
+
+                        {/* Trust Proof */}
+                        {msg.trustProof && (
+                          <TrustProofPanel {...msg.trustProof} />
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -429,7 +544,14 @@ const ChatInterface: React.FC = () => {
 
       {/* Input Area */}
       <div className="bg-neutral-900/10 backdrop-blur-sm border-t border-white/5 p-4">
-        <ChatInput onSend={handleSend} isLoading={isLoading} />
+        <ChatInput
+          onSend={handleSend}
+          isLoading={isLoading}
+          selectedModels={selectedModels}
+          onModelChange={handleOpenModelSelector}
+          onPreviewRequest={openFilePreview}
+          placeholder={!selectedModels ? "Select AI models to start..." : undefined}
+        />
       </div>
     </div>
   );

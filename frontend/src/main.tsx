@@ -11,6 +11,8 @@ import NotFound from './components/NotFound';
 import TrustView from './components/TrustView';
 import { metadata, networks, projectId, wagmiAdapter } from './config';
 import LandingPage from './LandingPage';
+import { ErrorProvider } from './lib/ErrorContext';
+import { GlobalUIProvider } from './lib/GlobalUIContext';
 
 const queryClient = new QueryClient()
 
@@ -20,7 +22,7 @@ const generalConfig = {
   metadata,
   themeMode: 'dark' as const,
   themeVariables: {
-    '--w3m-accent': '#000000',
+    '--w3m-accent': '#0a0a0a', // neutral-950
   }
 }
 
@@ -37,14 +39,18 @@ createRoot(document.getElementById('root')!).render(
     <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <AppLayout>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/chat" element={<ChatInterface />} />
-              <Route path="/trust" element={<TrustView />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AppLayout>
+          <ErrorProvider>
+            <GlobalUIProvider>
+              <AppLayout>
+                <Routes>
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/chat" element={<ChatInterface />} />
+                  <Route path="/trust" element={<TrustView />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </AppLayout>
+            </GlobalUIProvider>
+          </ErrorProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </WagmiProvider>

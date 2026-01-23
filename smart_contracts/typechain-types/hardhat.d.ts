@@ -14,10 +14,19 @@ import * as Contracts from ".";
 declare module "hardhat/types/runtime" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
     getContractFactory(
+      name: "AIDecisionRegistry",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.AIDecisionRegistry__factory>;
+    getContractFactory(
       name: "DecisionLogger",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.DecisionLogger__factory>;
 
+    getContractAt(
+      name: "AIDecisionRegistry",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.AIDecisionRegistry>;
     getContractAt(
       name: "DecisionLogger",
       address: string | ethers.Addressable,
@@ -25,10 +34,19 @@ declare module "hardhat/types/runtime" {
     ): Promise<Contracts.DecisionLogger>;
 
     deployContract(
+      name: "AIDecisionRegistry",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.AIDecisionRegistry>;
+    deployContract(
       name: "DecisionLogger",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.DecisionLogger>;
 
+    deployContract(
+      name: "AIDecisionRegistry",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.AIDecisionRegistry>;
     deployContract(
       name: "DecisionLogger",
       args: any[],
