@@ -27,6 +27,8 @@ class DecisionPacket(BaseModel):
     fdc_proof_hash: Optional[str] = Field(None, description="Flare Data Connector proof hash if used")
     timestamp: int = Field(default_factory=lambda: int(time.time()), description="Unix timestamp of decision")
     backend_signer: str = Field(..., description="Address of the backend TEE/Signer that authorized this packet")
+    subject: str = Field(default="AI Decision", description="Human-readable summary of the decision")
+    subject: str = Field(default="AI Decision", description="Human-readable summary of the decision")
 
     @field_validator("wallet_address", "backend_signer")
     @classmethod

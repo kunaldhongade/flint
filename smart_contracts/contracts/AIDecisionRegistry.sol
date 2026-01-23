@@ -12,6 +12,7 @@ contract AIDecisionRegistry {
     struct Decision {
         bytes32 decisionId;       // Unique UUIDv4 hash
         bytes32 ipfsCidHash;      // Keccak256(IPFS_CID) for immutable link
+        string ipfsCid;           // The actual IPFS CID string (e.g. Qm... or ba...)
         bytes32 domainHash;       // Keccak256("DeFi" | "Medical" | "Security")
         bytes32 chosenModelHash;  // Keccak256(model_id)
         string subject;           // Human-readable context (e.g., "Swap 100 USDC")
@@ -46,6 +47,7 @@ contract AIDecisionRegistry {
     function registerDecision(
         bytes32 _decisionId,
         bytes32 _ipfsCidHash,
+        string calldata _ipfsCid,
         bytes32 _domainHash,
         bytes32 _chosenModelHash,
         string calldata _subject
@@ -57,6 +59,7 @@ contract AIDecisionRegistry {
         decisions[_decisionId] = Decision({
             decisionId: _decisionId,
             ipfsCidHash: _ipfsCidHash,
+            ipfsCid: _ipfsCid,
             domainHash: _domainHash,
             chosenModelHash: _chosenModelHash,
             subject: _subject,

@@ -65,7 +65,10 @@ class DecisionInterceptor:
         model_context = f"{model_id}:{ai_action}"
         model_hash = Web3.to_hex(Web3.keccak(text=model_context))
 
-        # 4. Create Packet
+        # 4. Generate human-readable subject
+        subject = f"{ai_action}: {input_summary[:50]}{'...' if len(input_summary) > 50 else ''}"
+        
+        # 5. Create Packet
         packet = DecisionPacket(
             wallet_address=wallet_address,
             ai_action=ai_action,
@@ -74,7 +77,8 @@ class DecisionInterceptor:
             model_hash=model_hash,
             backend_signer=self.signing_address,
             ftso_feed_id=ftso_feed_id,
-            ftso_round_id=ftso_round_id
+            ftso_round_id=ftso_round_id,
+            subject=subject
         )
         
         # 5. Log the interception

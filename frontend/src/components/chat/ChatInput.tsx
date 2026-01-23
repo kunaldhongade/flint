@@ -139,55 +139,83 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, placeho
             )}
 
             {/* Input Area */}
-            <form onSubmit={handleSubmit} className="relative flex items-end gap-2 bg-neutral-900/60 backdrop-blur-xl p-2 rounded-2xl border border-white/10 focus-within:border-white/20 focus-within:ring-1 focus-within:ring-white/20 transition-all shadow-lg">
-                <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-2 text-neutral-400 hover:text-white transition-colors rounded-xl hover:bg-neutral-800"
-                    title="Attach file"
-                >
-                    <Paperclip className="w-5 h-5" />
-                </button>
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileSelect}
-                    className="hidden"
-                />
-
-                <div className="flex-1 py-2">
-                    <Input
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        onPaste={handlePaste}
-                        placeholder={placeholder || "Ask Flint to analyze, swap, or stake..."}
-                        className="w-full border-0 bg-transparent p-0 text-white placeholder:text-neutral-500 focus-visible:ring-0 shadow-none h-auto min-h-[24px]"
-                        disabled={isLoading}
-                        autoComplete="off"
+            <form
+                onSubmit={handleSubmit}
+                className="relative flex items-end gap-3 bg-neutral-900/40 backdrop-blur-2xl px-4 py-3 rounded-[24px] border border-white/[0.08] focus-within:border-white/[0.15] focus-within:bg-neutral-900/60 transition-all duration-300 shadow-2xl group"
+            >
+                <div className="flex items-center self-end pb-1">
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2 text-neutral-500 hover:text-neutral-200 transition-colors rounded-xl hover:bg-white/5"
+                        title="Attach file"
+                    >
+                        <Paperclip className="w-5 h-5" />
+                    </button>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        className="hidden"
                     />
                 </div>
 
-                <Button
-                    type="submit"
-                    disabled={(!text.trim() && !file) || isLoading}
-                    className={`rounded-xl h-10 w-10 p-0 transition-all ${text.trim() || file ? 'bg-[#FA8112] text-white hover:bg-[#E06C00]' : 'bg-neutral-800 text-neutral-500'
-                        }`}
-                >
-                    <Send className="w-4 h-4" />
-                </Button>
+                <div className="flex-1 min-h-[40px] flex items-center">
+                    <textarea
+                        value={text}
+                        onChange={(e) => {
+                            setText(e.target.value);
+                            // Auto-resize textarea
+                            e.target.style.height = 'auto';
+                            e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                        }}
+                        onKeyDown={(e) => {
+                            // Submit on Enter (without Shift)
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                if (text.trim() || file) {
+                                    handleSubmit(e as any);
+                                }
+                            }
+                        }}
+                        onPaste={handlePaste}
+                        placeholder={placeholder || "Ask Flint to analyze, swap, or stake..."}
+                        className="w-full border-0 bg-transparent py-2 px-0 text-[15px] leading-relaxed text-[#FAF3E1] placeholder:text-neutral-600 focus:ring-0 focus:outline-none resize-none overflow-y-auto min-h-[24px] max-h-[200px] scrollbar-none"
+                        disabled={isLoading}
+                        autoComplete="off"
+                        rows={1}
+                        style={{ height: 'auto' }}
+                    />
+                </div>
 
-                {onVerify && (
+                <div className="flex items-center gap-2 self-end pb-0.5">
+                    {onVerify && (
+                        <Button
+                            type="button"
+                            onClick={onVerify}
+                            disabled={!canVerify || isLoading}
+                            className={`rounded-xl h-9 px-3 flex items-center gap-2 transition-all duration-300 ${canVerify
+                                    ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20'
+                                    : 'bg-neutral-800/30 text-neutral-600 border border-transparent cursor-not-allowed opacity-40'
+                                }`}
+                            title="Verify decision"
+                        >
+                            <Shield className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">Verify</span>
+                        </Button>
+                    )}
+
                     <Button
-                        type="button"
-                        onClick={onVerify}
-                        disabled={!canVerify || isLoading}
-                        className={`rounded-xl h-10 px-3 flex items-center gap-2 transition-all ${canVerify ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-600/30' : 'bg-neutral-800/50 text-neutral-600 border border-neutral-700/50 cursor-not-allowed opacity-50'}`}
-                        title="Verify and create proof for your AI decisions"
+                        type="submit"
+                        disabled={(!text.trim() && !file) || isLoading}
+                        className={`rounded-xl h-9 w-9 p-0 transition-all duration-300 ${text.trim() || file
+                                ? 'bg-[#FA8112] text-white hover:bg-[#E06C00] shadow-lg shadow-[#FA8112]/20'
+                                : 'bg-neutral-800/50 text-neutral-600'
+                            }`}
                     >
-                        <Shield className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">Verify & Proof</span>
+                        <Send className="w-4 h-4" />
                     </Button>
-                )}
+                </div>
             </form>
 
             {/* Model Selector Dropdown */}

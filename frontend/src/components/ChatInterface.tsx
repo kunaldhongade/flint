@@ -15,6 +15,7 @@ import { ControlPanel, Domain } from './chat/ControlPanel';
 import { ExecutionStrategyPanel, StrategyStep } from './chat/ExecutionStrategyPanel';
 import { ModelResultReviewPanel } from './chat/ModelResultReviewPanel';
 import { TrustProofPanel } from './chat/TrustProofPanel';
+import { VerificationProgressModal } from './ui/VerificationProgressModal';
 
 
 // --- Types ---
@@ -45,6 +46,7 @@ interface Message {
   trustProof?: TrustProof;
   strategySteps?: StrategyStep[];
   selectedVote?: string; // Track which model was selected
+  suggestions?: string[];
 }
 
 interface StatusState {
@@ -82,6 +84,9 @@ const ChatInterface: React.FC = () => {
   const [domain, setDomain] = useState<Domain>('DeFi');
   const [executionEnabled, setExecutionEnabled] = useState<boolean>(true);
   const [pendingDecision, setPendingDecision] = useState<{ packet: any, loggerAddress: string } | null>(null);
+  const [verificationSteps, setVerificationSteps] = useState<Array<{ id: string; label: string; status: 'pending' | 'loading' | 'success' | 'error'; detail?: string; hash?: string }>>([]);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<{ decisionId?: string; txHash?: string; ipfsCid?: string }>({});
   const { openModelSelector, openFilePreview } = useGlobalUI();
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -166,14 +171,16 @@ const ChatInterface: React.FC = () => {
 
   // --- On-Chain Logic (Preserved & Adapted) ---
 
-  const logDecisionOnChain = async (packet: any, loggerAddress: string) => {
+  const logDecisionOnChain = async (packet: any, loggerAddress: string, silent: boolean = false) => {
     if (!walletClient || !packet) return;
 
-    setStatus({
-      message: "Registering Decision",
-      subMessage: "Logging to AIDecisionRegistry...",
-      type: "loading"
-    });
+    if (!silent) {
+      setStatus({
+        message: "Registering Decision",
+        subMessage: "Logging to AIDecisionRegistry...",
+        type: "loading"
+      });
+    }
 
     try {
       const cleanUuid = packet.decision_id.replace(/-/g, '');
@@ -181,6 +188,7 @@ const ChatInterface: React.FC = () => {
 
       // New parameters for AIDecisionRegistry
       const ipfsCidHash = packet.ipfs_cid_hash?.startsWith('0x') ? packet.ipfs_cid_hash : `0x${packet.ipfs_cid_hash || '0'.repeat(64)}`;
+      const ipfsCid = packet.ipfs_cid || "";
       const domainHash = packet.domain_hash?.startsWith('0x') ? packet.domain_hash : `0x${packet.domain_hash || '0'.repeat(64)}`;
       const chosenModelHash = packet.chosen_model_hash?.startsWith('0x') ? packet.chosen_model_hash : `0x${packet.chosen_model_hash || '0'.repeat(64)}`;
       const subject = packet.subject || "AI Decision";
@@ -188,6 +196,7 @@ const ChatInterface: React.FC = () => {
       const args = [
         decisionIdBytes32,
         ipfsCidHash,
+        ipfsCid,
         domainHash,
         chosenModelHash,
         subject
@@ -200,11 +209,13 @@ const ChatInterface: React.FC = () => {
         args: args
       });
 
-      setStatus({
-        message: "Decision Registered",
-        subMessage: "Waiting for confirmation...",
-        type: "loading"
-      });
+      if (!silent) {
+        setStatus({
+          message: "Decision Registered",
+          subMessage: "Waiting for confirmation...",
+          type: "loading"
+        });
+      }
 
       // Simple wait (in a real app, use waitForTransaction)
       await new Promise(r => setTimeout(r, 4000));
@@ -323,13 +334,8 @@ const ChatInterface: React.FC = () => {
       setStatus(null);
 
       // 4. Construct Final Message
-      // Extract Agent Votes (Mock data if not in backend yet, or parsing logic)
-      // Ideally backend returns this structure. For now, we simulate if not present.
-      const agentVotes: AgentVote[] = data.agent_votes || [
-        { name: 'Conservator', role: 'Conservative', decision: 'approve', reason: 'Risk falls within safe parameters.' },
-        { name: 'Strategist', role: 'Neutral', decision: 'approve', reason: 'Aligned with user request.' },
-        { name: 'Degen', role: 'Aggressive', decision: 'reject', reason: 'Yield too low.' },
-      ];
+      // Only show agent votes if explicitly returned from backend (e.g., when using model selector)
+      const agentVotes: AgentVote[] | undefined = data.agent_votes;
 
       // Parse Strategy Steps
       let strategySteps: StrategyStep[] = [];
@@ -340,7 +346,7 @@ const ChatInterface: React.FC = () => {
             id: `step-${Date.now()}-${i}`,
             protocol: 'Flare',
             action: t.description || 'Transaction',
-            amount: '---', // Extract if possible
+            amount: t.amount, // Extract if possible
             status: 'ready',
             txData: t.tx || t // Store raw tx data for execution
           }));
@@ -356,10 +362,11 @@ const ChatInterface: React.FC = () => {
       updateLastMessage({
         text: data.response,
         isTyping: false,
-        agentVotes,
-        consensusScore: "2/3",
+        agentVotes: agentVotes, // Only include if present
+        consensusScore: agentVotes ? `${agentVotes.filter(v => v.decision === 'approve').length}/${agentVotes.length}` : undefined,
         trustProof,
-        strategySteps: strategySteps.length > 0 ? strategySteps : undefined
+        strategySteps: strategySteps.length > 0 ? strategySteps : undefined,
+        suggestions: data.suggestions
       });
 
     } catch (error: any) {
@@ -376,18 +383,34 @@ const ChatInterface: React.FC = () => {
   const handleVerify = async () => {
     if (!pendingDecision) return;
 
+    // Initialize steps
+    const steps = [
+      { id: 'ipfs', label: 'Uploading to IPFS', status: 'pending' as const, detail: 'Storing decision metadata...' },
+      { id: 'contract', label: 'Logging on-chain', status: 'pending' as const, detail: 'Creating verifiable proof...' },
+      { id: 'complete', label: 'Verification Complete', status: 'pending' as const, detail: 'Decision indexed successfully' }
+    ];
+
+    setVerificationSteps(steps);
+    setShowVerificationModal(true);
     setIsLoading(true);
-    setStatus({ message: "Creating Proof", subMessage: "Uploading to IPFS...", type: "loading" });
 
     try {
-      // 1. Upload to IPFS/Pinata first
-      // Find the last bot message whose trial we are confirming
+      // Step 1: Upload to IPFS
+      setVerificationSteps(prev => prev.map(s => s.id === 'ipfs' ? { ...s, status: 'loading' } : s));
+
       const lastBotMsg = [...messages].reverse().find(m => m.type === 'bot');
+
+      // Collect any execution transaction hashes
+      const executionTxHashes = lastBotMsg?.strategySteps
+        ?.filter(s => s.status === 'completed' && s.txHash)
+        .map(s => s.txHash) || [];
+
       const trailData = {
         decision_id: pendingDecision.packet.decision_id,
         user_input: pendingDecision.packet.input_summary,
         ai_response: lastBotMsg?.text,
         agent_votes: lastBotMsg?.agentVotes,
+        execution_tx_hashes: executionTxHashes,
         timestamp: pendingDecision.packet.timestamp,
         domain: domain
       };
@@ -401,15 +424,35 @@ const ChatInterface: React.FC = () => {
       if (!confirmResponse.ok) throw new Error("IPFS Upload Failed");
       const confirmData = await confirmResponse.json();
 
+      setVerificationSteps(prev => prev.map(s =>
+        s.id === 'ipfs' ? { ...s, status: 'success', hash: confirmData.ipfs_cid } : s
+      ));
+
       const updatedPacket = {
         ...pendingDecision.packet,
-        ipfs_cid_hash: confirmData.cid_hash || pendingDecision.packet.ipfs_cid_hash
+        ipfs_cid_hash: confirmData.cid_hash || pendingDecision.packet.ipfs_cid_hash,
+        ipfs_cid: confirmData.ipfs_cid
       };
 
-      // 2. Log on-chain
-      const hash = await logDecisionOnChain(updatedPacket, pendingDecision.loggerAddress);
+      // Step 2: Log on-chain
+      setVerificationSteps(prev => prev.map(s => s.id === 'contract' ? { ...s, status: 'loading' } : s));
+
+      const hash = await logDecisionOnChain(updatedPacket, pendingDecision.loggerAddress, true);
 
       if (hash) {
+        setVerificationSteps(prev => prev.map(s =>
+          s.id === 'contract' ? { ...s, status: 'success', hash } : s
+        ));
+
+        // Step 3: Complete
+        setVerificationSteps(prev => prev.map(s =>
+          s.id === 'complete' ? { ...s, status: 'success' } : s
+        ));
+
+        // Store hash in localStorage for TrustView to pick up
+        localStorage.setItem(`flint_tx_${pendingDecision.packet.decision_id}`, hash);
+
+        // Update messages with trust proof
         setMessages(prev => {
           const newMsgs = [...prev];
           const targetMsg = [...newMsgs].reverse().find(m => m.type === 'bot');
@@ -424,14 +467,21 @@ const ChatInterface: React.FC = () => {
           }
           return newMsgs;
         });
+
+        setVerificationResult({
+          decisionId: pendingDecision.packet.decision_id,
+          txHash: hash,
+          ipfsCid: confirmData.ipfs_cid
+        });
+
         setPendingDecision(null);
-        setStatus({ message: "Verifiable Proof Created", subMessage: "Decision indexed on Flare & IPFS", type: "success" });
-        setTimeout(() => setStatus(null), 3000);
       }
     } catch (e: any) {
       console.error(e);
+      setVerificationSteps(prev => prev.map(s =>
+        s.status === 'loading' ? { ...s, status: 'error', detail: e.message } : s
+      ));
       showError({ message: "Verification Failed", detail: e.message });
-      setStatus(null);
     } finally {
       setIsLoading(false);
     }
@@ -610,7 +660,7 @@ const ChatInterface: React.FC = () => {
       {/* Input Area */}
       <div className="bg-neutral-900/10 backdrop-blur-sm border-t border-white/5 p-4">
         <ChatSuggestions
-          isVisible={!isLoading && messages.length < 5}
+          isVisible={!isLoading}
           onSuggestionClick={handleSuggestionClick}
         />
         <ChatInput
@@ -624,6 +674,20 @@ const ChatInterface: React.FC = () => {
           placeholder={!selectedModels ? "Select AI models to start..." : undefined}
         />
       </div>
+
+      {/* Verification Progress Modal */}
+      <VerificationProgressModal
+        isOpen={showVerificationModal}
+        onClose={() => {
+          setShowVerificationModal(false);
+          setVerificationSteps([]);
+          setVerificationResult({});
+        }}
+        steps={verificationSteps}
+        decisionId={verificationResult.decisionId}
+        txHash={verificationResult.txHash}
+        ipfsCid={verificationResult.ipfsCid}
+      />
     </div>
   );
 };

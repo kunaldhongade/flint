@@ -38,6 +38,7 @@ from flare_ai_defai.prompts.templates import (
     TOKEN_SEND,
     TOKEN_SWAP,
     TX_CONFIRMATION,
+    SUGGESTIONS_GENERATOR,
 )
 
 logger = structlog.get_logger(__name__)
@@ -172,6 +173,15 @@ class PromptLibrary:
                 response_schema=PortfolioAnalysisResponse,
                 response_mime_type=None,
                 category="analysis",
+            ),
+            Prompt(
+                name="suggestions_generator",
+                description="Generate follow-up suggestions for the user",
+                template=SUGGESTIONS_GENERATOR,
+                required_inputs=["context", "ai_response"],
+                response_schema=None,
+                response_mime_type="application/json",
+                category="conversational",
             ),
         ]
 

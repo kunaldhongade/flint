@@ -8,6 +8,8 @@ services:
       - "80:80"
     env_file:
       - .env
+    environment:
+      - UV_HTTP_TIMEOUT=300
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]

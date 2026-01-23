@@ -2,4 +2,3 @@
 /* tslint:disable */
 /* eslint-disable */
 export { AIDecisionRegistry__factory } from "./AIDecisionRegistry__factory";
-export { DecisionLogger__factory } from "./DecisionLogger__factory";

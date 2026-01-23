@@ -123,6 +123,69 @@ class FlareProvider:
         self.logger.debug("check_balance", balance_wei=balance_wei)
         return float(self.w3.from_wei(balance_wei, "ether"))
 
+    def check_token_balance(self, token_address: str, decimals: int = 18) -> float:
+        """
+        Check the balance of an ERC20 token for the current account.
+
+        Args:
+            token_address: Contract address of the ERC20 token
+            decimals: Number of decimals the token uses (default: 18)
+
+        Returns:
+            float: Token balance
+
+        Raises:
+            ValueError: If account does not exist
+        """
+        if not self.address:
+            msg = "No wallet connected"
+            raise ValueError(msg)
+
+        # Import ERC20 ABI
+        from .erc20_abi import ERC20_ABI
+
+        # Create contract instance
+        token_contract = self.w3.eth.contract(
+            address=self.w3.to_checksum_address(token_address), abi=ERC20_ABI
+        )
+
+        # Get balance
+        balance_raw = token_contract.functions.balanceOf(self.address).call()
+
+        # Convert to human-readable format
+        balance = balance_raw / (10**decimals)
+
+        return float(balance)
+
+    def check_all_token_balances(self, token_addresses: dict[str, str], token_decimals: dict[str, int], include_zero: bool = False) -> dict[str, float]:
+        """
+        Check balances for multiple ERC20 tokens.
+
+        Args:
+            token_addresses: Dictionary mapping token symbols to contract addresses
+            token_decimals: Dictionary mapping token symbols to their decimal places
+            include_zero: Whether to include tokens with zero balance
+
+        Returns:
+            dict[str, float]: Dictionary mapping token symbols to their balances
+        """
+        balances = {}
+
+        for symbol, address in token_addresses.items():
+            if address == "native":
+                # Skip native token, it's handled separately
+                continue
+
+            try:
+                decimals = token_decimals.get(symbol, 18)
+                balance = self.check_token_balance(address, decimals)
+                if include_zero or balance > 0:  # Optionally include tokens with zero balance
+                    balances[symbol] = balance
+            except Exception as e:
+                self.logger.warning(f"Failed to get balance for {symbol}", error=str(e))
+
+        return balances
+
     def create_send_flr_tx(self, to_address: str, amount: float) -> TxParams:
         """
         Create a transaction to send FLR tokens.

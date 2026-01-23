@@ -315,7 +315,7 @@ class ChatRouter:
                     route_response = self.ai.generate(
                         prompt=prompt, response_mime_type=mime_type, response_schema=schema
                     )
-                    route = SemanticRouterResponse(route_response.text)
+                    route = SemanticRouterResponse(route_response.text.strip())
                     ai_action = route.value
                     handler_response = await self.route_message(route, message_text)
 
@@ -351,6 +351,12 @@ class ChatRouter:
                         self.logger.error("interceptor_failed", error=str(e))
                         # Fail open or closed? For PoC, log and proceed.
                 
+                # Generate follow-up suggestions
+                if "response" in handler_response:
+                    suggestions = await self.get_suggestions(handler_response["response"])
+                    if suggestions:
+                        handler_response["suggestions"] = suggestions
+
                 return handler_response
 
             except Exception as e:
@@ -444,10 +450,28 @@ class ChatRouter:
             route_response = self.ai.generate(
                 prompt=prompt, response_mime_type=mime_type, response_schema=schema
             )
-            return SemanticRouterResponse(route_response.text)
+            return SemanticRouterResponse(route_response.text.strip())
         except Exception as e:
             self.logger.exception("routing_failed", error=str(e))
             return SemanticRouterResponse.CONVERSATIONAL
+
+    async def get_suggestions(self, ai_response: str) -> list[str]:
+        """
+        Generate dynamic suggestions based on the AI response.
+        """
+        try:
+            prompt, mime_type, _ = self.prompts.get_formatted_prompt(
+                "suggestions_generator", ai_response=ai_response, context=""
+            )
+            response = self.ai.generate(
+                prompt=prompt, response_mime_type=mime_type
+            )
+            import json
+            suggestions = json.loads(response.text)
+            return suggestions if isinstance(suggestions, list) else []
+        except Exception as e:
+            self.logger.error("suggestions_failed", error=str(e))
+            return []
 
     async def route_message(
         self, route: SemanticRouterResponse, message: str
@@ -470,9 +494,21 @@ class ChatRouter:
             SemanticRouterResponse.CROSS_CHAIN_SWAP: self.handle_cross_chain_swap,
             SemanticRouterResponse.STAKE_FLR: self.handle_stake_command,
             SemanticRouterResponse.REQUEST_ATTESTATION: self.handle_attestation,
-            SemanticRouterResponse.ONBOARDING: self.handle_onboarding,
             SemanticRouterResponse.CONVERSATIONAL: self.handle_conversation,
         }
+
+        # Defensive validation: ensure route exists in handlers
+        if route not in handlers:
+            self.logger.error(
+                "invalid_semantic_route",
+                route=str(route),
+                available_routes=[str(r) for r in handlers.keys()],
+            )
+            raise ValueError(
+                f"PROTOCOL MISMATCH: LLM returned '{route}' which is not in SemanticRouterResponse enum. "
+                f"This indicates the prompt and enum are out of sync. "
+                f"Valid routes: {[str(r) for r in handlers.keys()]}"
+            )
 
         # Check for direct command patterns before semantic routing
         message_lower = message.lower()
@@ -507,20 +543,40 @@ class ChatRouter:
 
         return await handler(message)
 
-    async def handle_balance_check(self, _: str) -> dict[str, str]:
-        """
-        Handle balance check requests.
-        """
+    async def handle_balance_check(self, message: str) -> dict[str, str]:
+        """Handle balance check requests - supports native FLR and ERC20 tokens."""
         if not self.blockchain.address:
             return {
                 "response": "Please make sure your wallet is connected to check your balance."
             }
 
         try:
-            balance = self.blockchain.check_balance()
-            return {
-                "response": f"Your wallet ({self.blockchain.address[:6]}...{self.blockchain.address[-4:]}) has:\n\n{balance} FLR"
-            }
+            # Get native balance
+            native_balance = self.blockchain.check_balance()
+            native_symbol = self.blockchain.native_symbol
+
+            # Get all token balances including zero balances using blazeswap tokens
+            token_balances = self.blockchain.check_all_token_balances(
+                self.blazeswap.tokens, self.blazeswap.token_decimals, include_zero=True
+            )
+
+            # Build response
+            response = f"Your wallet holdings ({self.blockchain.address[:6]}...{self.blockchain.address[-4:]}):\n\n"
+            response += f"• **{native_symbol}**: {native_balance:,.6f}\n"
+
+            # Separate tokens with balance from those with zero balance
+            with_balance = {s: b for s, b in token_balances.items() if b > 0}
+            zero_balance = {s: b for s, b in token_balances.items() if b == 0}
+
+            if with_balance:
+                response += "\n**Token Balances:**\n"
+                for symbol, balance in sorted(with_balance.items()):
+                    response += f"• **{symbol}**: {balance:,.6f}\n"
+
+            if zero_balance:
+                response += f"\n**Other Supported Tokens:** {', '.join(sorted(zero_balance.keys()))} (0 balance)"
+
+            return {"response": response}
         except Exception as e:
             self.logger.exception(BALANCE_CHECK_ERROR, error=str(e))
             return {"response": f"{BALANCE_CHECK_ERROR}: {e!s}"}
@@ -588,11 +644,8 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
             token_in = parts[2].upper()
             token_out = parts[4].upper()
 
-            # Initialize BlazeSwap handler
-            blazeswap = BlazeSwapHandler(self.blockchain.w3.provider.endpoint_uri)
-
-            # Validate tokens
-            supported_tokens = list(blazeswap.tokens.keys())
+            # Validate tokens using blazeswap instance
+            supported_tokens = list(self.blazeswap.tokens.keys())
             if token_in != "FLR" and token_in not in supported_tokens:
                 return {
                     "response": f"Unsupported input token: {token_in}. Supported tokens: FLR, {', '.join(supported_tokens)}"
@@ -604,16 +657,16 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
                 }
 
             # Prepare swap transaction
-            swap_data = await blazeswap.prepare_swap_transaction(
+            swap_data = await self.blazeswap.prepare_swap_transaction(
                 token_in=token_in,
                 token_out=token_out,
                 amount_in=amount,
                 wallet_address=self.blockchain.address,
-                router_address=blazeswap.contracts["router"],
+                router_address=self.blazeswap.contracts["router"],
             )
 
-            # Convert transaction to JSON string
-            transaction_json = json.dumps(swap_data["transaction"])
+            # Convert transaction to JSON string - frontend expects 'transactions' (plural)
+            transaction_json = json.dumps([swap_data["transaction"]])  # Wrap in array
 
             # Format the response based on the tokens involved
             min_amount = self.blockchain.w3.from_wei(
@@ -631,9 +684,27 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
                 + f"- Amount: {amount} {token_in}\n"
                 + f"- Minimum received: {min_amount} {token_out}\n\n"
                 + "Please confirm the transaction in your wallet.",
-                "transaction": transaction_json,  # Now sending as a JSON string
+                "transactions": transaction_json,  # Changed from 'transaction' to 'transactions'
             }
 
+
+        except ValueError as e:
+            # Handle pool validation errors specifically
+            error_msg = str(e)
+            if "No liquidity pool exists" in error_msg:
+                # Extract available pairs from error message
+                self.logger.warning("pool_not_found", token_in=token_in, token_out=token_out, error=error_msg)
+                return {
+                    "response": f"{error_msg}\n\n💡 **Suggestions:**\n"
+                    f"• Add liquidity for {token_in}/{token_out} pair\n"
+                    f"• Try swapping with available pairs listed above\n"
+                    f"• Check BlazeSwap for existing pools",
+                    "suggest_add_liquidity": True,
+                    "token_pair": f"{token_in}/{token_out}"
+                }
+            else:
+                self.logger.error(SWAP_ERROR, error=error_msg)
+                return {"response": f"{SWAP_ERROR}: {error_msg}"}
         except Exception as e:
             self.logger.exception(SWAP_ERROR, error=str(e))
             return {"response": f"{SWAP_ERROR}: {e!s}"}
@@ -699,6 +770,36 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
         prompt, _, _ = self.prompts.get_formatted_prompt("onboarding")
         response = self.ai.send_message(prompt)
         return {"response": response.text}
+
+    async def handle_risk_assessment(self, message: str) -> dict[str, str]:
+        """Handle risk assessment requests."""
+        try:
+            # Extract risk score from message (e.g., "risk 5")
+            parts = message.split()
+            score = 5.0
+            if len(parts) >= 2:
+                try:
+                    score = float(parts[1])
+                except ValueError:
+                    pass
+            
+            # Clamp score between 1 and 10
+            score = max(1.0, min(10.0, score))
+            
+            # Generate a strategy based on the score
+            if score <= 3:
+                strategy = "Conservative: Focus on stablecoins like USDC.E and USDT. Consider providing liquidity to stable pairs or staking FLR to sFLR for steady rewards with lower volatility."
+            elif score <= 7:
+                strategy = "Moderate: A balanced mix of staking FLR and providing liquidity to major pairs like FLR/USDC.E or FLR/WETH. This provides a good balance between rewards and market exposure."
+            else:
+                strategy = "Aggressive: Focus on high-yield pairs like FLR/FLX or speculative assets. Be prepared for higher volatility and potential impermanent loss in exchange for higher reward potential."
+            
+            return {
+                "response": f"Based on your risk tolerance of {score}/10, here is your customized DeFi strategy:\n\n**Strategy:** {strategy}\n\nWould you like to explore specific liquidity pools or staking options?"
+            }
+        except Exception as e:
+            self.logger.exception("Error in risk assessment", error=str(e))
+            return {"response": f"Error calculating risk strategy: {e!s}"}
 
     async def handle_message(self, message: str) -> dict[str, str]:
         """Handle incoming chat message."""
@@ -792,8 +893,8 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
             if stake_data["status"] == "error":
                 return {"response": f"{STAKING_ERROR}: {stake_data['message']}"}
 
-            # Convert transaction to JSON string
-            transaction_json = json.dumps(stake_data["transaction"])
+            # Convert transaction to JSON string - frontend expects 'transactions' (plural)
+            transaction_json = json.dumps([stake_data["transaction"]])  # Wrap in array
 
             return {
                 "response": f"Ready to stake {amount} FLR to sFLR.\n\n"
@@ -802,7 +903,7 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
                 + f"- Amount: {amount} FLR\n"
                 + f"- Contract: {SFLR_CONTRACT_ADDRESS[:6]}...{SFLR_CONTRACT_ADDRESS[-4:]}\n\n"
                 + "Please confirm the transaction in your wallet.",
-                "transaction": transaction_json,
+                "transactions": transaction_json,  # Changed from 'transaction' to 'transactions'
             }
 
         except Exception as e:
@@ -870,11 +971,8 @@ Supported tokens: USDC.E, USDT, WETH, FLX"""
             amount_flr = float(parts[2])
             token = parts[4].upper()
 
-            # Initialize BlazeSwap handler
-            blazeswap = BlazeSwapHandler(self.blockchain.w3.provider.endpoint_uri)
-
-            # Validate token
-            supported_tokens = list(blazeswap.tokens.keys())
+            # Validate token using blazeswap instance
+            supported_tokens = list(self.blazeswap.tokens.keys())
             if token not in supported_tokens or token == "FLR" or token == "WFLR":
                 return {
                     "response": f"Unsupported token: {token}. Supported tokens: {', '.join([t for t in supported_tokens if t not in ['FLR', 'WFLR']])}"
@@ -920,12 +1018,12 @@ Supported tokens: USDC.E, USDT, WETH, FLX"""
             print(f"Debug - Calculated {amount_token} {token} for {amount_flr} FLR")
 
             # Prepare add liquidity transaction
-            liquidity_data = await blazeswap.prepare_add_liquidity_transaction(
+            liquidity_data = await self.blazeswap.prepare_add_liquidity_nat_transaction(
                 token=token,
                 amount_token=amount_token,
                 amount_flr=amount_flr,
                 wallet_address=self.blockchain.address,
-                router_address=blazeswap.contracts["router"],
+                router_address=self.blazeswap.contracts["router"],
             )
 
             # Print debug information about the transaction
@@ -1012,11 +1110,8 @@ Supported tokens: WFLR, USDC.E, USDT, WETH, FLX"""
             token_a = parts[3].upper()
             token_b = parts[4].upper()
 
-            # Initialize BlazeSwap handler
-            blazeswap = BlazeSwapHandler(self.blockchain.w3.provider.endpoint_uri)
-
-            # Validate tokens
-            supported_tokens = list(blazeswap.tokens.keys())
+            # Validate tokens using blazeswap instance
+            supported_tokens = list(self.blazeswap.tokens.keys())
 
             # Special case: if either token is FLR, redirect to handle_add_liquidity_nat
             if token_a == "FLR":
@@ -1042,10 +1137,10 @@ Supported tokens: WFLR, USDC.E, USDT, WETH, FLX"""
 
             # Special case for WFLR - make sure we're using the correct token address
             if token_a == "WFLR":
-                print(f"Debug - Using WFLR as token A: {blazeswap.tokens['WFLR']}")
+                print(f"Debug - Using WFLR as token A: {self.blazeswap.tokens['WFLR']}")
 
             if token_b == "WFLR":
-                print(f"Debug - Using WFLR as token B: {blazeswap.tokens['WFLR']}")
+                print(f"Debug - Using WFLR as token B: {self.blazeswap.tokens['WFLR']}")
 
             # Get token pair price to calculate the equivalent amount of token B
             # This is a simplified approach - in a real implementation, you would query the pool for the current ratio
@@ -1087,13 +1182,13 @@ Supported tokens: WFLR, USDC.E, USDT, WETH, FLX"""
             print(f"Debug - Calculated {amount_b} {token_b} for {amount_a} {token_a}")
 
             # Prepare add liquidity transaction
-            liquidity_data = await blazeswap.prepare_add_liquidity_transaction(
+            liquidity_data = await self.blazeswap.prepare_add_liquidity_transaction(
                 token_a=token_a,
                 token_b=token_b,
                 amount_a=amount_a,
                 amount_b=amount_b,
                 wallet_address=self.blockchain.address,
-                router_address=blazeswap.contracts["router"],
+                router_address=self.blazeswap.contracts["router"],
             )
 
             # Print debug information about the transaction

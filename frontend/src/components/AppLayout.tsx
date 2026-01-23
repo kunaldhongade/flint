@@ -21,6 +21,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
     const [isNewChatAlertOpen, setIsNewChatAlertOpen] = useState(false);
+    const [isActiveDeleteAlertOpen, setIsActiveDeleteAlertOpen] = useState(false);
     const { error, clearError } = useError();
     const {
         filePreview, closeFilePreview,
@@ -31,12 +32,22 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         return <>{children}</>;
     }
 
+    const handleDeleteRequest = (item: { id: string; title: string }) => {
+        const isActive = location.search === `?session=${item.id}`;
+        if (isActive) {
+            setIsActiveDeleteAlertOpen(true);
+        } else {
+            setDeleteConfirm(item);
+        }
+    };
+
     const handleDeleteConfirm = () => {
         if (deleteConfirm) {
             deleteSession(deleteConfirm.id);
             if (location.search === `?session=${deleteConfirm.id}`) {
                 navigate('/chat', { replace: true });
             }
+            setDeleteConfirm(null);
         }
     };
 
@@ -51,7 +62,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
             <Sidebar
                 className="hidden md:flex flex-shrink-0 z-20 relative bg-neutral-900/80 backdrop-blur-xl border-r border-white/5"
-                onDeleteRequest={setDeleteConfirm}
+                onDeleteRequest={handleDeleteRequest}
                 onNewChatAlert={() => setIsNewChatAlertOpen(true)}
             />
 
@@ -73,6 +84,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 onClose={() => setIsNewChatAlertOpen(false)}
                 title="Strategy Active"
                 message="You're already on a new chat session."
+            />
+
+            <MessageModal
+                isOpen={isActiveDeleteAlertOpen}
+                onClose={() => setIsActiveDeleteAlertOpen(false)}
+                title="Active Session"
+                message="You cannot delete a chat that is currently running."
             />
 
             <ErrorModal

@@ -66,7 +66,7 @@ export const ExecutionStrategyPanel: React.FC<ExecutionStrategyPanelProps> = ({ 
 
                             {step.status === 'completed' && step.txHash && (
                                 <a
-                                    href={`https://flarescan.com/tx/${step.txHash}`}
+                                    href={`https://testnet.flarescan.com/tx/${step.txHash}`}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="text-xs text-neutral-500 hover:text-blue-400 underline decoration-neutral-700 underline-offset-2"

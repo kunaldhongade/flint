@@ -44,17 +44,11 @@ Categories (in order of precedence):
    • Must specifically request verification or attestation
    • Related to security or trust verification
 
-- Trust Layer (DECISION_LOGGING):
-   • Use when user wants to verify or log data on-chain.
-
-- ONBOARDING:
-   • Keywords: start, begin, onboard, how to use, guide, tutorial
-   • Must involve starting the initial user journey or asking for instructions.
-   • Examples: "tutorial", "start onboarding", "how do I use this?", "help me begin"
-
-- CONVERSATIONAL (default):
-   • Use when input doesn't clearly match above categories.
-   • General questions, greetings, or unclear requests.
+8. CONVERSATIONAL (default)
+   • Use when input doesn't clearly match above categories
+   • General questions, greetings, or unclear requests
+   • Help requests, tutorials, onboarding, "how to use" questions
+   • Any conversational or informational queries
 
 Input: ${user_input}
 
@@ -65,6 +59,7 @@ Instructions:
 - Ignore politeness phrases or extra context
 - Focus on core intent of request
 - For swaps, check if it mentions different chains
+- IMPORTANT: Output ONLY the category name, nothing else
 """
 
 GENERATE_ACCOUNT: Final = """
@@ -130,7 +125,7 @@ Extract EXACTLY three pieces of information from the input for a token swap oper
 1. SOURCE TOKEN (from_token)
    Valid formats:
    • Native token: "FLR" or "flr"
-   • Listed pairs only: "USDC", "WFLR", "USDT", "sFLR", "WETH"
+   • Listed tokens: Check available pairs below
    • Case-insensitive match
    • Strip spaces and normalize to uppercase
    • FAIL if token not recognized
@@ -341,4 +336,30 @@ Since this is your first time, I recommend this path:
 5. **Stake & Earn**: Stake your FLR tokens to get sFLR and earn rewards.
 
 How would you like to start?
+"""
+
+SUGGESTIONS_GENERATOR: Final = """
+Based on the following AI response and the conversation context, generate 3-4 short, actionable follow-up suggestions for the user.
+Each suggestion should be a short phrase (max 5 words) that a user might want to click on next.
+
+Context:
+${context}
+
+AI Response:
+${ai_response}
+
+Available Operations:
+- Check balance (FLR and tokens)
+- Stake FLR to sFLR
+- Swap tokens: FLR ↔ WFLR ↔ FLX (NOT USDC - unsupported)
+- Send FLR to addresses
+- Request attestation
+
+Instructions:
+- Return ONLY a JSON list of strings.
+- Max 4 suggestions.
+- Keep them varied (e.g., one for checking balance, one for a transaction, one for a technical question).
+- Make them specific to the current state if possible.
+- ONLY suggest supported tokens: FLR, WFLR, FLX, sFLR, USDC.E.
+- Examples: "Swap 10 FLR to FLX", "Check my balance", "Stake 5 FLR", "Swap 0.1 FLR to USDC.E"
 """

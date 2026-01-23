@@ -9,6 +9,7 @@ RUN npm run build
 
 # Stage 2: Build Backend
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS backend-builder
+ENV UV_HTTP_TIMEOUT=300
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -18,15 +19,16 @@ RUN apt-get update && apt-get install -y \
 # Build flare_ai_defai
 ADD . /flare_ai_defai
 WORKDIR /flare_ai_defai
-RUN uv sync --frozen
+RUN uv sync
 
 # Build flare_ai_rag
 WORKDIR /flare_ai_rag
 ADD . /flare_ai_rag
-RUN uv sync --frozen
+RUN uv sync
 
 # Stage 3: Final Image
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+ENV UV_HTTP_TIMEOUT=300
 
 # Install nginx
 RUN apt-get update && apt-get install -y nginx supervisor curl && \

@@ -43,7 +43,7 @@ export interface AIDecisionRegistryInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "registerDecision",
-    values: [BytesLike, BytesLike, BytesLike, BytesLike, string]
+    values: [BytesLike, BytesLike, string, BytesLike, BytesLike, string]
   ): string;
   encodeFunctionData(
     functionFragment: "verifyDecision",
@@ -142,9 +142,10 @@ export interface AIDecisionRegistry extends BaseContract {
   decisions: TypedContractMethod<
     [arg0: BytesLike],
     [
-      [string, string, string, string, string, bigint] & {
+      [string, string, string, string, string, string, bigint] & {
         decisionId: string;
         ipfsCidHash: string;
+        ipfsCid: string;
         domainHash: string;
         chosenModelHash: string;
         subject: string;
@@ -160,6 +161,7 @@ export interface AIDecisionRegistry extends BaseContract {
     [
       _decisionId: BytesLike,
       _ipfsCidHash: BytesLike,
+      _ipfsCid: string,
       _domainHash: BytesLike,
       _chosenModelHash: BytesLike,
       _subject: string
@@ -183,9 +185,10 @@ export interface AIDecisionRegistry extends BaseContract {
   ): TypedContractMethod<
     [arg0: BytesLike],
     [
-      [string, string, string, string, string, bigint] & {
+      [string, string, string, string, string, string, bigint] & {
         decisionId: string;
         ipfsCidHash: string;
+        ipfsCid: string;
         domainHash: string;
         chosenModelHash: string;
         subject: string;
@@ -203,6 +206,7 @@ export interface AIDecisionRegistry extends BaseContract {
     [
       _decisionId: BytesLike,
       _ipfsCidHash: BytesLike,
+      _ipfsCid: string,
       _domainHash: BytesLike,
       _chosenModelHash: BytesLike,
       _subject: string

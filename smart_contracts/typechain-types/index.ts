@@ -2,7 +2,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { AIDecisionRegistry } from "./AIDecisionRegistry";
-export type { DecisionLogger } from "./DecisionLogger";
 export * as factories from "./factories";
 export { AIDecisionRegistry__factory } from "./factories/AIDecisionRegistry__factory";
-export { DecisionLogger__factory } from "./factories/DecisionLogger__factory";

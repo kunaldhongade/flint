@@ -44,10 +44,18 @@ class BlazeSwapHandler:
                 "C2FLR": "native",
                 "WC2FLR": "0xC67DCE33D7A8efA5FfEB961899C73fe01bCe9273",  # Wrapped C2FLR
                 "FLX": "0x22757fb83836e3F9F0F353126cACD3B1Dc82a387",  # FlareFox token
+                "sFLR": "0x12e605bc104e93B45e1aD99F9e555f659051c2BB",  # Staked FLR
+                "USDC.E": "0x0158223696a583e74FE34870f784e1bFCa759C40",  # Test USDC.e
             }
             self.wrapped_native_symbol = "WC2FLR"
             # Token decimals
-            self.token_decimals = {"C2FLR": 18, "WC2FLR": 18, "FLX": 18}
+            self.token_decimals = {
+                "C2FLR": 18,
+                "WC2FLR": 18,
+                "FLX": 18,
+                "sFLR": 18,
+                "USDC.E": 6,
+            }
 
         # Convert contract addresses to checksum addresses
         self.contracts["router"] = self.w3.to_checksum_address(self.contracts["router"])
@@ -301,6 +309,87 @@ class BlazeSwapHandler:
             },
         ]
 
+        # BlazeSwap Factory ABI (for pool validation)
+        self.factory_abi = [
+            {
+                "constant": True,
+                "inputs": [
+                    {"name": "tokenA", "type": "address"},
+                    {"name": "tokenB", "type": "address"}
+                ],
+                "name": "getPair",
+                "outputs": [{"name": "pair", "type": "address"}],
+                "payable": False,
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ]
+
+    async def check_pool_exists(self, token_a: str, token_b: str) -> bool:
+        """
+        Check if a liquidity pool exists for the given token pair.
+        
+        Args:
+            token_a: First token symbol (e.g., 'FLR', 'WC2FLR')
+            token_b: Second token symbol (e.g., 'FLX', 'USDC.E')
+            
+        Returns:
+            bool: True if pool exists, False otherwise
+        """
+        try:
+            # Get token addresses
+            if token_a.upper() == "FLR" or token_a.upper() == "C2FLR":
+                token_a_address = self.tokens[self.wrapped_native_symbol]
+            else:
+                token_a_address = self.tokens.get(token_a.upper())
+            
+            token_b_address = self.tokens.get(token_b.upper())
+            
+            if not token_a_address or not token_b_address:
+                return False
+            
+            # Get factory contract
+            factory = self.w3.eth.contract(
+                address=self.contracts["factory"],
+                abi=self.factory_abi
+            )
+            
+            # Check if pair exists
+            pair_address = factory.functions.getPair(
+                self.w3.to_checksum_address(token_a_address),
+                self.w3.to_checksum_address(token_b_address)
+            ).call()
+            
+            # If pair address is zero address, pool doesn't exist
+            zero_address = "0x0000000000000000000000000000000000000000"
+            return pair_address.lower() != zero_address.lower()
+            
+        except Exception as e:
+            print(f"Error checking pool existence: {e}")
+            return False
+
+    async def get_available_pairs(self) -> list[dict[str, str]]:
+        """
+        Get list of available trading pairs with liquidity pools.
+        
+        Returns:
+            List of dicts with 'token_a' and 'token_b' keys
+        """
+        available_pairs = []
+        tokens = list(self.tokens.keys())
+        
+        # Check all possible combinations
+        for i, token_a in enumerate(tokens):
+            for token_b in tokens[i+1:]:
+                if await self.check_pool_exists(token_a, token_b):
+                    available_pairs.append({
+                        "token_a": token_a,
+                        "token_b": token_b,
+                        "pair": f"{token_a}/{token_b}"
+                    })
+        
+        return available_pairs
+
     async def prepare_swap_transaction(
         self,
         token_in: str,
@@ -314,6 +403,34 @@ class BlazeSwapHandler:
         try:
             print(f"Debug - Preparing swap: {amount_in} {token_in} to {token_out}")
             print(f"Debug - Available tokens: {list(self.tokens.keys())}")
+
+            # Validate that both tokens are supported
+            if token_in.upper() not in self.tokens and token_in.upper() not in ["FLR", "C2FLR"]:
+                raise ValueError(
+                    f"Unsupported input token: {token_in}. Supported tokens: {', '.join(self.tokens.keys())}"
+                )
+            
+            if token_out.upper() not in self.tokens:
+                raise ValueError(
+                    f"Unsupported output token: {token_out}. Supported tokens: {', '.join(self.tokens.keys())}"
+                )
+
+            # Check if pool exists (skip for wrapping operations)
+            is_wrap = (token_in.upper() in ["FLR", "C2FLR"] and token_out.upper() == self.wrapped_native_symbol)
+            is_unwrap = (token_in.upper() == self.wrapped_native_symbol and token_out.upper() in ["FLR", "C2FLR"])
+            
+            if not is_wrap and not is_unwrap:
+                pool_exists = await self.check_pool_exists(token_in, token_out)
+                if not pool_exists:
+                    # Get available pairs for helpful error message
+                    available_pairs = await self.get_available_pairs()
+                    pairs_str = ", ".join([p["pair"] for p in available_pairs]) if available_pairs else "None"
+                    
+                    raise ValueError(
+                        f"No liquidity pool exists for {token_in}/{token_out}. "
+                        f"Available pairs: {pairs_str}. "
+                        f"You can add liquidity for this pair to enable swaps."
+                    )
 
             # Special case: FLR to Wrapped Native (wrap)
             if token_in.upper() == "FLR" and token_out.upper() == self.wrapped_native_symbol:

@@ -17,14 +17,23 @@ const SUGGESTIONS: Suggestion[] = [
 interface ChatSuggestionsProps {
     onSuggestionClick: (text: string) => void;
     isVisible: boolean;
+    suggestions?: string[];
 }
 
-export const ChatSuggestions: React.FC<ChatSuggestionsProps> = ({ onSuggestionClick, isVisible }) => {
-    if (!isVisible) return null;
+export const ChatSuggestions: React.FC<ChatSuggestionsProps> = ({ onSuggestionClick, isVisible, suggestions }) => {
+    // Only show suggestions if we have dynamic ones from the backend
+    if (!isVisible || !suggestions || suggestions.length === 0) return null;
+
+    const displaySuggestions = suggestions.map((s, i) => ({
+        id: `dyn-${i}`,
+        text: s,
+        // Add icon for first suggestion to make it stand out
+        icon: i === 0 ? <Sparkles className="w-3 h-3 text-[#FA8112]" /> : undefined
+    }));
 
     return (
         <div className="flex flex-wrap gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-            {SUGGESTIONS.map((suggestion) => (
+            {displaySuggestions.map((suggestion) => (
                 <button
                     key={suggestion.id}
                     onClick={() => onSuggestionClick(suggestion.text)}
