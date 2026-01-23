@@ -8,9 +8,9 @@ import AIDecisionRegistryArtifact from '../abis/AIDecisionRegistry.json';
 import chatRobot from '../assets/chat_robot.json';
 import { useError } from '../lib/ErrorContext';
 import { useGlobalUI } from '../lib/GlobalUIContext';
-import { INITIAL_STRATEGY_STEP } from '../lib/constants';
 import { AgentDecisionPanel } from './chat/AgentDecisionPanel';
 import { ChatInput } from './chat/ChatInput';
+import { ChatSuggestions } from './chat/ChatSuggestions';
 import { ControlPanel, Domain } from './chat/ControlPanel';
 import { ExecutionStrategyPanel, StrategyStep } from './chat/ExecutionStrategyPanel';
 import { ModelResultReviewPanel } from './chat/ModelResultReviewPanel';
@@ -30,6 +30,7 @@ interface TrustProof {
   decisionId: string;
   decisionHash: string;
   txHash?: string;
+  ipfsCid?: string;
   timestamp: number;
 }
 
@@ -80,6 +81,7 @@ const ChatInterface: React.FC = () => {
   const [selectedModels, setSelectedModels] = useState<string[] | null>(null);
   const [domain, setDomain] = useState<Domain>('DeFi');
   const [executionEnabled, setExecutionEnabled] = useState<boolean>(true);
+  const [pendingDecision, setPendingDecision] = useState<{ packet: any, loggerAddress: string } | null>(null);
   const { openModelSelector, openFilePreview } = useGlobalUI();
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -314,12 +316,8 @@ const ChatInterface: React.FC = () => {
       if (!response.ok) throw new Error("API Error");
       const data = await response.json();
 
-      // 3. Process Decision Logging (simulated concurrent update)
-      let txHash: string | undefined;
       if (data.decision_packet && data.decision_logger_address) {
-        updateLastMessage({ text: "Verifying decision on Flare..." });
-        const hash = await logDecisionOnChain(data.decision_packet, data.decision_logger_address);
-        if (hash) txHash = hash;
+        setPendingDecision({ packet: data.decision_packet, loggerAddress: data.decision_logger_address });
       }
 
       setStatus(null);
@@ -352,8 +350,7 @@ const ChatInterface: React.FC = () => {
       const trustProof: TrustProof | undefined = data.decision_packet ? {
         decisionId: data.decision_packet.decision_id,
         decisionHash: data.decision_packet.decision_hash,
-        timestamp: data.decision_packet.timestamp * 1000,
-        txHash: txHash
+        timestamp: data.decision_packet.timestamp * 1000
       } : undefined;
 
       updateLastMessage({
@@ -376,13 +373,81 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  const handleVerify = async () => {
+    if (!pendingDecision) return;
+
+    setIsLoading(true);
+    setStatus({ message: "Creating Proof", subMessage: "Uploading to IPFS...", type: "loading" });
+
+    try {
+      // 1. Upload to IPFS/Pinata first
+      // Find the last bot message whose trial we are confirming
+      const lastBotMsg = [...messages].reverse().find(m => m.type === 'bot');
+      const trailData = {
+        decision_id: pendingDecision.packet.decision_id,
+        user_input: pendingDecision.packet.input_summary,
+        ai_response: lastBotMsg?.text,
+        agent_votes: lastBotMsg?.agentVotes,
+        timestamp: pendingDecision.packet.timestamp,
+        domain: domain
+      };
+
+      const confirmResponse = await fetch("/api/routes/chat/confirm_decision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision_trail: trailData })
+      });
+
+      if (!confirmResponse.ok) throw new Error("IPFS Upload Failed");
+      const confirmData = await confirmResponse.json();
+
+      const updatedPacket = {
+        ...pendingDecision.packet,
+        ipfs_cid_hash: confirmData.cid_hash || pendingDecision.packet.ipfs_cid_hash
+      };
+
+      // 2. Log on-chain
+      const hash = await logDecisionOnChain(updatedPacket, pendingDecision.loggerAddress);
+
+      if (hash) {
+        setMessages(prev => {
+          const newMsgs = [...prev];
+          const targetMsg = [...newMsgs].reverse().find(m => m.type === 'bot');
+          if (targetMsg) {
+            targetMsg.trustProof = {
+              decisionId: pendingDecision.packet.decision_id,
+              decisionHash: pendingDecision.packet.decision_hash,
+              ipfsCid: confirmData.ipfs_cid,
+              timestamp: pendingDecision.packet.timestamp * 1000,
+              txHash: hash
+            };
+          }
+          return newMsgs;
+        });
+        setPendingDecision(null);
+        setStatus({ message: "Verifiable Proof Created", subMessage: "Decision indexed on Flare & IPFS", type: "success" });
+        setTimeout(() => setStatus(null), 3000);
+      }
+    } catch (e: any) {
+      console.error(e);
+      showError({ message: "Verification Failed", detail: e.message });
+      setStatus(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSuggestionClick = (text: string) => {
+    handleSend(text, null);
+  };
+
 
   // --- Render ---
 
   return (
     <div className="flex flex-col h-screen w-full max-w-5xl mx-auto bg-transparent">
       {/* Chat Stream */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth relative scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth relative scrollbar-hide hover:scrollbar-visible">
 
 
 
@@ -544,8 +609,14 @@ const ChatInterface: React.FC = () => {
 
       {/* Input Area */}
       <div className="bg-neutral-900/10 backdrop-blur-sm border-t border-white/5 p-4">
+        <ChatSuggestions
+          isVisible={!isLoading && messages.length < 5}
+          onSuggestionClick={handleSuggestionClick}
+        />
         <ChatInput
           onSend={handleSend}
+          onVerify={handleVerify}
+          canVerify={!!pendingDecision}
           isLoading={isLoading}
           selectedModels={selectedModels}
           onModelChange={handleOpenModelSelector}

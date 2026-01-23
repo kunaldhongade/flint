@@ -12,6 +12,8 @@ interface ChatInputProps {
     selectedModels?: string[] | null;
     onModelChange?: () => void;
     onPreviewRequest?: (file: File) => void;
+    onVerify?: () => void;
+    canVerify?: boolean;
 }
 
 const AVAILABLE_MODELS = [
@@ -23,7 +25,7 @@ const AVAILABLE_MODELS = [
     { id: 'gemini-3.5-ultra', name: 'Gemini 3.5 Ultra', maxSizeMB: 20 },
 ];
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, placeholder, selectedModels, onModelChange, onPreviewRequest }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, placeholder, selectedModels, onModelChange, onPreviewRequest, onVerify, canVerify }) => {
     const [text, setText] = React.useState('');
     const [file, setFile] = React.useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -173,6 +175,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, placeho
                 >
                     <Send className="w-4 h-4" />
                 </Button>
+
+                {onVerify && (
+                    <Button
+                        type="button"
+                        onClick={onVerify}
+                        disabled={!canVerify || isLoading}
+                        className={`rounded-xl h-10 px-3 flex items-center gap-2 transition-all ${canVerify ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-600/30' : 'bg-neutral-800/50 text-neutral-600 border border-neutral-700/50 cursor-not-allowed opacity-50'}`}
+                        title="Verify and create proof for your AI decisions"
+                    >
+                        <Shield className="w-4 h-4" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">Verify & Proof</span>
+                    </Button>
+                )}
             </form>
 
             {/* Model Selector Dropdown */}

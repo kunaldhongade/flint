@@ -186,7 +186,6 @@ class GeminiProvider(BaseAIProvider):
         )
 
     # @override
-    # @override
     async def send_message_with_attachment(
         self, msg: str, file_data: bytes, mime_type: str
     ) -> ModelResponse:

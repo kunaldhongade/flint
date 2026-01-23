@@ -44,10 +44,17 @@ Categories (in order of precedence):
    • Must specifically request verification or attestation
    • Related to security or trust verification
 
-8. CONVERSATIONAL (default)
-   • Use when input doesn't clearly match above categories
-   • General questions, greetings, or unclear requests
-   • Any ambiguous or multi-category inputs
+- Trust Layer (DECISION_LOGGING):
+   • Use when user wants to verify or log data on-chain.
+
+- ONBOARDING:
+   • Keywords: start, begin, onboard, how to use, guide, tutorial
+   • Must involve starting the initial user journey or asking for instructions.
+   • Examples: "tutorial", "start onboarding", "how do I use this?", "help me begin"
+
+- CONVERSATIONAL (default):
+   • Use when input doesn't clearly match above categories.
+   • General questions, greetings, or unclear requests.
 
 Input: ${user_input}
 
@@ -318,7 +325,20 @@ Rules:
 - Score MUST be float type
 - Provide clear reasoning for the score
 - Analysis should be short for each aspect
-- Focus on key risk factors and patterns
-- Highlight notable aspects of the portfolio
-- Assessment text is readable with bolding and spacing
+    - Focus on key risk factors and patterns
+    - Highlight notable aspects of the portfolio
+    - Assessment text is readable with bolding and spacing
+"""
+
+ONBOARDING: Final = """
+I am Artemis, your guide to the Flare Network. Let's get you set up for the future of decentralized finance.
+
+Since this is your first time, I recommend this path:
+1. **Connect Wallet**: Ensure your wallet is connected using the button in the top right.
+2. **Fund Account**: Use the [Coston2 Faucet](https://faucet.flare.network/coston2) to get test tokens.
+3. **Check Balance**: Ask me "balance" to see your current holdings.
+4. **First Swap**: Try swapping a small amount of FLR for USDC.E to see how I work.
+5. **Stake & Earn**: Stake your FLR tokens to get sFLR and earn rewards.
+
+How would you like to start?
 """

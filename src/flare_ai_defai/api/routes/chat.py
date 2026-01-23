@@ -14,6 +14,7 @@ The module provides a ChatRouter class that integrates various services:
 import json
 import os
 import re
+from typing import Any, Dict, List
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request, UploadFile
@@ -469,6 +470,7 @@ class ChatRouter:
             SemanticRouterResponse.CROSS_CHAIN_SWAP: self.handle_cross_chain_swap,
             SemanticRouterResponse.STAKE_FLR: self.handle_stake_command,
             SemanticRouterResponse.REQUEST_ATTESTATION: self.handle_attestation,
+            SemanticRouterResponse.ONBOARDING: self.handle_onboarding,
             SemanticRouterResponse.CONVERSATIONAL: self.handle_conversation,
         }
 
@@ -683,14 +685,19 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
     async def handle_conversation(self, message: str) -> dict[str, str]:
         """
         Handle general conversation messages.
-
-        Args:
-            message: Message to process
-
-        Returns:
-            dict[str, str]: Response from AI provider
         """
-        response = self.ai.send_message(message)
+        prompt, _, _ = self.prompts.get_formatted_prompt(
+            "conversational", user_input=message, context="", image_data=""
+        )
+        response = self.ai.send_message(prompt)
+        return {"response": response.text}
+
+    async def handle_onboarding(self, _: str) -> dict[str, str]:
+        """
+        Handle onboarding requests.
+        """
+        prompt, _, _ = self.prompts.get_formatted_prompt("onboarding")
+        response = self.ai.send_message(prompt)
         return {"response": response.text}
 
     async def handle_message(self, message: str) -> dict[str, str]:

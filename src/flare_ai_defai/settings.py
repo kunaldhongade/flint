@@ -40,14 +40,18 @@ class Settings(BaseSettings):
         validation_alias="WEB3_PROVIDER_URL"
     )
     # URL for the Flare Network block explorer
-    web3_explorer_url: str = "https://flare-explorer.flare.network/"
+    web3_explorer_url: str = "https://testnet.flarescan.com/"
     
     # Contract Address for Trust Layer
-    decision_logger_address: str = "0x0000000000000000000000000000000000000000"
+    decision_logger_address: str = Field(
+        default="0x6eC6F9d2e69E5569ffCf9fe8Bff4848aEca8f573",
+        validation_alias="DECISION_LOGGER_ADDRESS"
+    )
 
     # Pinata IPFS Keys
     pinata_api_key: str = ""
     pinata_secret_api_key: str = ""
+    pinata_jwt_token: str = Field(default="", validation_alias="PINATA_JWT_ACCESS_SECRET_TOKEN")
 
     # API settings
     api_host: str = "0.0.0.0"

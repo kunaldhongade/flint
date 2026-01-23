@@ -5,12 +5,14 @@ interface TrustProofPanelProps {
     decisionId: string;
     decisionHash: string;
     txHash?: string;
+    ipfsCid?: string;
     timestamp: number;
 }
 
 export const TrustProofPanel: React.FC<TrustProofPanelProps> = ({
     decisionId,
     txHash,
+    ipfsCid,
     timestamp
 }) => {
     const [copied, setCopied] = React.useState(false);
@@ -46,17 +48,25 @@ export const TrustProofPanel: React.FC<TrustProofPanelProps> = ({
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                    <span className="text-neutral-500">Hash Match</span>
-                    <code className="text-emerald-500 font-mono text-[10px]">
-                        VERIFIED_ON_CHAIN
-                    </code>
-                </div>
+                {ipfsCid && (
+                    <div className="flex items-center justify-between">
+                        <span className="text-neutral-500">IPFS Source</span>
+                        <a
+                            href={`https://gateway.pinata.cloud/ipfs/${ipfsCid}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                            <span className="font-mono text-[10px]">{ipfsCid.slice(0, 6)}...{ipfsCid.slice(-4)}</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                    </div>
+                )}
 
                 {txHash && (
                     <div className="border-t border-neutral-800 mt-2 pt-2">
                         <a
-                            href={`https://coston2.testnet.flarescan.com/tx/${txHash}`}
+                            href={`https://testnet.flarescan.com/tx/${txHash}`}
                             target="_blank"
                             rel="noreferrer"
                             className="flex items-center justify-center gap-2 w-full py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
