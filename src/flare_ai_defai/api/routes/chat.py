@@ -615,13 +615,28 @@ class ChatRouter:
             amount=send_token_json.get("amount"),
         )
         self.logger.debug("send_token_tx", tx=tx)
-        self.blockchain.add_tx_to_queue(msg=message, tx=tx)
-        formatted_preview = (
-            "Transaction Preview: "
-            + f"Sending {Web3.from_wei(tx.get('value', 0), 'ether')} "
-            + f"FLR to {tx.get('to')}\nType CONFIRM to proceed."
-        )
-        return {"response": formatted_preview}
+
+        # Convert transaction to JSON string - frontend expects 'transactions' (plural)
+        # Note: create_send_flr_tx returns a TxParams dict which needs to be serialized
+        # We need to ensure hex values are handled correctly
+        formatted_tx = {
+            "from": tx["from"],
+            "to": tx["to"],
+            "value": hex(tx["value"]),
+            "nonce": hex(tx["nonce"]),
+            "gas": hex(tx["gas"]),
+            "maxFeePerGas": hex(int(tx["maxFeePerGas"])),
+            "maxPriorityFeePerGas": hex(int(tx["maxPriorityFeePerGas"])),
+            "chainId": hex(tx["chainId"]),
+            "type": "0x2",
+        }
+        transaction_json = json.dumps([formatted_tx])
+
+        return {
+            "response": f"Ready to send {send_token_json.get('amount')} FLR to {send_token_json.get('to_address')}.\n\n"
+            + "Please confirm the transaction in your wallet.",
+            "transactions": transaction_json,
+        }
 
     async def handle_swap_token(self, message: str) -> dict[str, str]:
         """Handle token swap requests."""

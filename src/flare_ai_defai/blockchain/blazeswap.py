@@ -37,8 +37,8 @@ class BlazeSwapHandler:
         else:
             # Coston2 testnet addresses
             self.contracts = {
-                "router": "0xe3A1b355ca63abCBC9589334B5e609583C7BAa06",  # BlazeSwap Router on Coston2
-                "factory": "0x440602f459D7Dd500a74528003e6A20A46d6e2A6",  # BlazeSwap Factory on Coston2
+                "router": "0x56a6552B5a9351C83A354C9359e9C179471f0084",  # BlazeSwap Router on Coston2
+                "factory": "0xf8866E8783451FE5A24Bde49e0839eD068307270",  # BlazeSwap Factory on Coston2
             }
             self.tokens = {
                 "C2FLR": "native",
@@ -465,8 +465,8 @@ class BlazeSwapHandler:
                 # Convert values to hex strings for proper JSON serialization
                 tx["value"] = hex(tx["value"])
                 tx["gas"] = hex(tx["gas"])
-                tx["maxFeePerGas"] = hex(tx["maxFeePerGas"])
-                tx["maxPriorityFeePerGas"] = hex(tx["maxPriorityFeePerGas"])
+                tx["maxFeePerGas"] = hex(int(tx["maxFeePerGas"]))
+                tx["maxPriorityFeePerGas"] = hex(int(tx["maxPriorityFeePerGas"]))
                 tx["nonce"] = hex(tx["nonce"])
                 tx["chainId"] = hex(tx["chainId"])
 
@@ -621,8 +621,8 @@ class BlazeSwapHandler:
             # Convert values to hex strings for proper JSON serialization
             tx["value"] = hex(tx["value"])
             tx["gas"] = hex(tx["gas"])
-            tx["maxFeePerGas"] = hex(tx["maxFeePerGas"])
-            tx["maxPriorityFeePerGas"] = hex(tx["maxPriorityFeePerGas"])
+            tx["maxFeePerGas"] = hex(int(tx["maxFeePerGas"]))
+            tx["maxPriorityFeePerGas"] = hex(int(tx["maxPriorityFeePerGas"]))
             tx["nonce"] = hex(tx["nonce"])
             tx["chainId"] = hex(tx["chainId"])
             tx["type"] = "0x2"
