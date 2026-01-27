@@ -177,8 +177,16 @@ class ChatRouter:
                 if selected_models and isinstance(selected_models, list) and len(selected_models) > 0:
                     from flare_ai_defai.ai.user_selected_model_executor import execute_selected_models
                     
-                    # Execute selected models concurrently
-                    model_results = await execute_selected_models(selected_models, message_text)
+                    # 1. RAG: Retrieve context for the user message
+                    retrieved_docs = await self.ai.rag_processor.retrieve_relevant_docs(query=message_text)
+                    
+                    # 2. RAG: Augment the prompt with context
+                    augmented_prompt = self.ai.rag_processor.augment_prompt(
+                        query=message_text, retrieved_docs=retrieved_docs
+                    )
+                    
+                    # Execute selected models concurrently with augmented prompt
+                    model_results = await execute_selected_models(selected_models, augmented_prompt)
                     
                     # Format as agent votes for the frontend to display
                     agent_votes = []
@@ -186,12 +194,12 @@ class ChatRouter:
                         agent_votes.append({
                             "name": res["model_id"],
                             "role": res["role"],
-                            "decision": "approve", # Default for now, or parse from res["response_text"]
-                            "reason": res["response_text"][:200] + "..." # Truncate for UI summary
+                            "decision": "approve", # Default for now
+                            "reason": res["response_text"]
                         })
                     
-                    # We pick one "main" response to show in the bubble, or aggregate them.
-                    main_response = f"Executed {len(model_results)} models: {', '.join(selected_models)}.\n\nSee detailed agent breakdown below."
+                    # We pick one "main" response to show in the bubble
+                    main_response = f"I've consulted {len(model_results)} specialized agents regarding your request about Flare. Based on the retrieved documentation, here is the consensus analysis."
                     if len(model_results) == 1:
                         main_response = model_results[0]["response_text"]
 
@@ -793,7 +801,7 @@ Supported tokens: FLR, WFLR, WC2FLR, USDT, WETH, FLX"""
         prompt, _, _ = self.prompts.get_formatted_prompt(
             "conversational", user_input=message, context="", image_data=""
         )
-        response = self.ai.send_message(prompt, session_id=session_id)
+        response = await self.ai.send_message(prompt, session_id=session_id)
         return {"response": response.text}
 
     async def handle_onboarding(self, _: str) -> dict[str, str]:
@@ -801,7 +809,7 @@ Supported tokens: FLR, WFLR, WC2FLR, USDT, WETH, FLX"""
         Handle onboarding requests.
         """
         prompt, _, _ = self.prompts.get_formatted_prompt("onboarding")
-        response = self.ai.send_message(prompt)
+        response = await self.ai.send_message(prompt)
         return {"response": response.text}
 
     async def handle_risk_assessment(self, message: str) -> dict[str, str]:

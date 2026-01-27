@@ -160,7 +160,7 @@ class GeminiProvider(BaseAIProvider):
         )
 
     # @override
-    def send_message(
+    async def send_message(
         self,
         msg: str,
         session_id: str | None = None,
@@ -190,7 +190,18 @@ class GeminiProvider(BaseAIProvider):
                 )
             chat = self._default_chat
 
-        response = chat.send_message(msg)
+        # Retrieve relevant documents using RAG
+        retrieved_docs = await self.rag_processor.retrieve_relevant_docs(query=msg)
+
+        # Augment the prompt with retrieved context
+        augmented_prompt = self.rag_processor.augment_prompt(
+            query=msg, retrieved_docs=retrieved_docs
+        )
+
+        # Use asyncio.to_thread for the blocking google-generativeai call if needed, 
+        # or just call it if it's fast enough. The genai library has async methods too.
+        response = await chat.send_message_async(augmented_prompt)
+        
         self.logger.debug("send_message", msg=msg, response_text=response.text)
         return ModelResponse(
             text=response.text,
@@ -198,6 +209,10 @@ class GeminiProvider(BaseAIProvider):
             metadata={
                 "candidate_count": len(response.candidates),
                 "prompt_feedback": response.prompt_feedback,
+                "retrieved_docs": [
+                    {"content": doc.content, "metadata": doc.metadata}
+                    for doc in retrieved_docs.documents
+                ],
             },
         )
 

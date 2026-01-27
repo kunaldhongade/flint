@@ -67,7 +67,7 @@ class BaseAIProvider(ABC):
         """
 
     @abstractmethod
-    def send_message(
+    async def send_message(
         self, msg: str, session_id: str | None = None
     ) -> ModelResponse:
         """Send a message in a conversational context
