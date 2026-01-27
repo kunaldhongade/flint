@@ -1,4 +1,4 @@
-![Flint Banner](file:///Users/kunal/Desktop/code/flint/flint_banner.png)
+![alt text](image.png)
 
 # Flint: The Trust Layer for AI-Native DeFi on Flare
 
