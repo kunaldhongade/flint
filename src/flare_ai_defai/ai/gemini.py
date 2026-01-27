@@ -19,7 +19,7 @@ logger = structlog.get_logger(__name__)
 
 
 SYSTEM_INSTRUCTION = """
-You are Artemis, an AI assistant specialized in helping users navigate
+You are Flint, an AI assistant specialized in helping users navigate
 the Flare blockchain ecosystem. As an expert in blockchain data and operations,
 you assist users with:
 
@@ -77,29 +77,34 @@ class GeminiProvider(BaseAIProvider):
                 - knowledge_base_path: Optional path to knowledge base for RAG
         """
         genai.configure(api_key=api_key)
-        self.chat: genai.ChatSession | None = None
+        # Dictionary to store active chat sessions keyed by session_id
+        self.sessions: dict[str, genai.ChatSession] = {}
         self.model = genai.GenerativeModel(
             model_name=model,
             system_instruction=kwargs.get("system_instruction", SYSTEM_INSTRUCTION),
         )
         self.chat_history: list[ContentDict] = [
-            ContentDict(parts=["Hi, I'm Artemis"], role="model")
+            ContentDict(parts=["Hi, I'm Flint"], role="model")
         ]
         self.logger = logger.bind(service="gemini")
         self.rag_processor = RAGProcessor(kwargs.get("knowledge_base_path"))
 
     # @override
-    def reset(self) -> None:
+    def reset(self, session_id: str | None = None) -> None:
         """
         Reset the provider state.
 
-        Clears chat history and terminates active chat session.
+        Args:
+            session_id: Optional ID of the specific session to reset.
+                        If None, clears all sessions.
         """
-        self.chat_history = []
-        self.chat = None
-        self.logger.debug(
-            "reset_gemini", chat=self.chat, chat_history=self.chat_history
-        )
+        if session_id:
+            if session_id in self.sessions:
+                del self.sessions[session_id]
+            self.logger.debug("reset_gemini_session", session_id=session_id)
+        else:
+            self.sessions = {}
+            self.logger.debug("reset_all_gemini_sessions")
 
     # @override
     def generate(
@@ -107,6 +112,7 @@ class GeminiProvider(BaseAIProvider):
         prompt: str,
         response_mime_type: str | None = None,
         response_schema: Any | None = None,
+        session_id: str | None = None,
     ) -> ModelResponse:
         """
         Generate content using the Gemini model.
@@ -115,14 +121,10 @@ class GeminiProvider(BaseAIProvider):
             prompt (str): Input prompt for content generation
             response_mime_type (str | None): Expected MIME type for the response
             response_schema (Any | None): Schema defining the response structure
+            session_id (str | None): Optional session ID for maintaining context
 
         Returns:
-            ModelResponse: Generated content with metadata including:
-                - text: Generated text content
-                - raw_response: Complete Gemini response object
-                - metadata: Additional response information including:
-                    - candidate_count: Number of generated candidates
-                    - prompt_feedback: Feedback on the input prompt
+            ModelResponse: Generated content with metadata
         """
         generation_config = {}
         if response_mime_type:
@@ -130,8 +132,14 @@ class GeminiProvider(BaseAIProvider):
         if response_schema:
             generation_config["response_schema"] = response_schema
 
-        # Create a new chat for this generation
-        chat = self.model.start_chat(history=[])
+        # Use existing session or starting a temporary one if no session_id
+        if session_id:
+            if session_id not in self.sessions:
+                self.sessions[session_id] = self.model.start_chat(history=[])
+            chat = self.sessions[session_id]
+        else:
+            chat = self.model.start_chat(history=[])
+
         response = chat.send_message(
             prompt,
             generation_config=(
@@ -155,26 +163,34 @@ class GeminiProvider(BaseAIProvider):
     def send_message(
         self,
         msg: str,
+        session_id: str | None = None,
     ) -> ModelResponse:
         """
         Send a message in a chat session and get the response.
 
-        Initializes a new chat session if none exists, using the current chat history.
-
         Args:
             msg (str): Message to send to the chat session
+            session_id (str | None): Optional session ID for maintaining context
 
         Returns:
-            ModelResponse: Response from the chat session including:
-                - text: Generated response text
-                - raw_response: Complete Gemini response object
-                - metadata: Additional response information including:
-                    - candidate_count: Number of generated candidates
-                    - prompt_feedback: Feedback on the input message
+            ModelResponse: Response from the chat session
         """
-        if not self.chat:
-            self.chat = self.model.start_chat(history=self.chat_history)
-        response = self.chat.send_message(msg)
+        if session_id:
+            if session_id not in self.sessions:
+                self.sessions[session_id] = self.model.start_chat(
+                    history=self.chat_history
+                )
+            chat = self.sessions[session_id]
+        else:
+            # Fallback to a single internal session for backward compatibility
+            # but ideally we should always use sessions
+            if not hasattr(self, "_default_chat") or self._default_chat is None:
+                self._default_chat = self.model.start_chat(
+                    history=self.chat_history
+                )
+            chat = self._default_chat
+
+        response = chat.send_message(msg)
         self.logger.debug("send_message", msg=msg, response_text=response.text)
         return ModelResponse(
             text=response.text,
@@ -187,21 +203,33 @@ class GeminiProvider(BaseAIProvider):
 
     # @override
     async def send_message_with_attachment(
-        self, msg: str, file_data: bytes, mime_type: str
+        self,
+        msg: str,
+        file_data: bytes,
+        mime_type: str,
+        session_id: str | None = None,
     ) -> ModelResponse:
         """
-        Send a message with an attachment (image, pdf, text, etc.) using the Gemini model.
+        Send a message with an attachment using the Gemini model.
 
         Args:
             msg: Text message to send
             file_data: Binary file data
-            mime_type: MIME type of the file (e.g. image/jpeg, application/pdf)
-
-        Returns:
-            ModelResponse containing the generated response
+            mime_type: MIME type of the file
+            session_id: Optional session ID for maintaining context
         """
-        if not self.chat:
-            self.chat = self.model.start_chat(history=self.chat_history)
+        if session_id:
+            if session_id not in self.sessions:
+                self.sessions[session_id] = self.model.start_chat(
+                    history=self.chat_history
+                )
+            chat = self.sessions[session_id]
+        else:
+            if not hasattr(self, "_default_chat") or self._default_chat is None:
+                self._default_chat = self.model.start_chat(
+                    history=self.chat_history
+                )
+            chat = self._default_chat
 
         # Retrieve relevant documents using RAG (still useful for context)
         retrieved_docs = await self.rag_processor.retrieve_relevant_docs(query=msg)

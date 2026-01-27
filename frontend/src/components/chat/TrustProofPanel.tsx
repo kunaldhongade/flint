@@ -7,13 +7,15 @@ interface TrustProofPanelProps {
     txHash?: string;
     ipfsCid?: string;
     timestamp: number;
+    modelId?: string;
 }
 
 export const TrustProofPanel: React.FC<TrustProofPanelProps> = ({
     decisionId,
     txHash,
     ipfsCid,
-    timestamp
+    timestamp,
+    modelId
 }) => {
     const [copied, setCopied] = React.useState(false);
 
@@ -60,6 +62,15 @@ export const TrustProofPanel: React.FC<TrustProofPanelProps> = ({
                             <span className="font-mono text-[10px]">{ipfsCid.slice(0, 6)}...{ipfsCid.slice(-4)}</span>
                             <ExternalLink className="w-2.5 h-2.5" />
                         </a>
+                    </div>
+                )}
+
+                {modelId && (
+                    <div className="flex items-center justify-between group">
+                        <span className="text-neutral-500">AI Model</span>
+                        <span className="text-neutral-300 font-medium bg-neutral-800 px-1.5 py-0.5 rounded text-[10px]">
+                            {modelId}
+                        </span>
                     </div>
                 )}
 

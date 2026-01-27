@@ -70,7 +70,7 @@ class TokenSwapResponse(BaseModel):
 
 class CrossChainSwapResponse(BaseModel):
     from_token: str = "FLR"  # Always FLR
-    to_token: str = "USDC"  # Always USDC
+    to_token: str = "WC2FLR"  # Always WC2FLR
     amount: float
 
 

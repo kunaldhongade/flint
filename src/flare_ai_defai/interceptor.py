@@ -30,6 +30,7 @@ class DecisionInterceptor:
         model_id: str = "gemini-1.5-flash",
         ftso_feed_id: Optional[str] = None,
         ftso_round_id: Optional[int] = None,
+        decision_id: Optional[UUID] = None,
     ) -> DecisionPacket:
         """
         Capture the decision context and generate a signed packet.
@@ -69,17 +70,22 @@ class DecisionInterceptor:
         subject = f"{ai_action}: {input_summary[:50]}{'...' if len(input_summary) > 50 else ''}"
         
         # 5. Create Packet
-        packet = DecisionPacket(
-            wallet_address=wallet_address,
-            ai_action=ai_action,
-            input_summary=input_summary,
-            decision_hash=decision_hash,
-            model_hash=model_hash,
-            backend_signer=self.signing_address,
-            ftso_feed_id=ftso_feed_id,
-            ftso_round_id=ftso_round_id,
-            subject=subject
-        )
+        packet_args = {
+            "wallet_address": wallet_address,
+            "ai_action": ai_action,
+            "input_summary": input_summary,
+            "decision_hash": decision_hash,
+            "model_hash": model_hash,
+            "backend_signer": self.signing_address,
+            "model_id": model_id,
+            "ftso_feed_id": ftso_feed_id,
+            "ftso_round_id": ftso_round_id,
+            "subject": subject
+        }
+        if decision_id:
+            packet_args["decision_id"] = decision_id
+
+        packet = DecisionPacket(**packet_args)
         
         # 5. Log the interception
         packet_hash = hash_decision_packet(packet)

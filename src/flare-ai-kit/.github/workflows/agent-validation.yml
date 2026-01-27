@@ -1,0 +1,220 @@
+name: Agents Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/docker-agents.yml"
+      - "Dockerfile"
+      - "agents/**"
+      - "pyproject.toml"
+      - "uv.lock"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-docker-agents:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        agent:
+          - name: "PDF Ingestion"
+            extras: "pdf"
+            filename: "ingest_pdf.py"
+            test_timeout: "300"  # 5 minutes
+    env:
+      LOG_LEVEL: INFO
+      AGENT__GEMINI_MODEL: "gemini-2.0-flash"
+      AGENT__GEMINI_API_KEY: ${{ secrets.AGENT__GEMINI_API_KEY }}
+      ECOSYSTEM__WEB3_PROVIDER_URL: "https://stylish-light-theorem.flare-mainnet.quiknode.pro/ext/bc/C/rpc"
+      INGESTION__CHUNK_SIZE: 5000
+      TEE__SIMULATE_ATTESTATION_TOKEN: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image for ${{ matrix.agent.name }}
+        run: |
+          docker build \
+            --build-arg EXTRAS=${{ matrix.agent.extras }} \
+            --build-arg AGENT=${{ matrix.agent.filename }} \
+            --tag fai-agent-${{ matrix.agent.extras }} \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            .
+
+      - name: Validate agent script exists in image
+        run: |
+          docker run --rm fai-agent-${{ matrix.agent.extras }} \
+            test -f "/app/agents/${{ matrix.agent.filename }}"
+
+      - name: Test agent startup (dry run)
+        timeout-minutes: 5
+        run: |
+          # Simple validation that the agent exists and dependencies are available
+          docker run --rm \
+            -e LOG_LEVEL="$LOG_LEVEL" \
+            -e AGENT__GEMINI_MODEL="$AGENT__GEMINI_MODEL" \
+            -e AGENT__GEMINI_API_KEY="$AGENT__GEMINI_API_KEY" \
+            -e ECOSYSTEM__WEB3_PROVIDER_URL="$ECOSYSTEM__WEB3_PROVIDER_URL" \
+            -e INGESTION__CHUNK_SIZE="$INGESTION__CHUNK_SIZE" \
+            -e TEE__SIMULATE_ATTESTATION_TOKEN="$TEE__SIMULATE_ATTESTATION_TOKEN" \
+            fai-agent-${{ matrix.agent.extras }} \
+            python -c "
+          import sys
+          import os
+
+          # Test that agent file exists
+          agent_path = '/app/agents/${{ matrix.agent.filename }}'
+          if not os.path.exists(agent_path):
+              print(f'❌ Agent not found: {agent_path}')
+              sys.exit(1)
+          print(f'✅ Agent exists: {agent_path}')
+
+          # Test that required dependencies are available
+          if '${{ matrix.agent.extras }}' == 'pdf':
+              try:
+                  import PIL
+                  import fitz  # pymupdf
+                  import pytesseract
+                  print('✅ PDF dependencies available')
+              except ImportError as e:
+                  print(f'❌ PDF dependency missing: {e}')
+                  sys.exit(1)
+
+          print('✅ Agent validation completed successfully')
+          "
+
+      - name: Test container health
+        run: |
+          # Test that the container can start and the Python environment is healthy
+          docker run --rm fai-agent-${{ matrix.agent.extras }} \
+            python -c "
+          import sys
+          print(f'Python version: {sys.version}')
+          print(f'Python path: {sys.path}')
+
+          # Test core dependencies
+          try:
+              import flare_ai_kit
+              print('✅ flare-ai-kit imported successfully')
+          except ImportError as e:
+              print(f'⚠️  flare-ai-kit import issue: {e}')
+              import httpx, pydantic, structlog
+              print('✅ Core Python dependencies available')
+
+          # Test that uv environment is working
+          import subprocess
+          result = subprocess.run(['/app/.venv/bin/python', '--version'],
+                                capture_output=True, text=True)
+          print(f'Virtual env Python: {result.stdout.strip()}')
+
+          print('✅ Container health check passed')
+          "
+
+      - name: Test agent dependencies for ${{ matrix.agent.name }}
+        run: |
+          # Test that the specific extras are properly installed
+          docker run --rm fai-agent-${{ matrix.agent.extras }} \
+            python -c "
+          import sys
+          extras = '${{ matrix.agent.extras }}'
+          print(f'Testing dependencies for extras: {extras}')
+
+          if 'pdf' in extras:
+              try:
+                  import PIL
+                  import fitz
+                  import pytesseract
+                  print('✅ PDF dependencies (PIL, fitz, pytesseract) available')
+              except ImportError as e:
+                  print(f'❌ PDF dependency missing: {e}')
+                  sys.exit(1)
+
+          if 'rag' in extras:
+              try:
+                  import qdrant_client
+                  import dulwich
+                  print('✅ RAG dependencies (qdrant_client, dulwich) available')
+              except ImportError as e:
+                  print(f'❌ RAG dependency missing: {e}')
+                  sys.exit(1)
+
+          if 'a2a' in extras:
+              try:
+                  import fastapi
+                  print('✅ A2A dependencies (fastapi) available')
+              except ImportError as e:
+                  print(f'❌ A2A dependency missing: {e}')
+                  sys.exit(1)
+
+          print('✅ All expected dependencies are available')
+          "
+
+  validate-build-args:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Test build without extras
+        run: |
+          docker build \
+            --build-arg AGENT=ingest_pdf.py \
+            --tag fai-agent-base \
+            .
+
+      - name: Test build with multiple extras
+        run: |
+          docker build \
+            --build-arg EXTRAS=pdf,rag \
+            --build-arg AGENT=ingest_pdf.py \
+            --tag fai-agent-multi \
+            .
+
+      - name: Validate multi-extras build
+        run: |
+          docker run --rm fai-agent-multi \
+            python -c "
+          import PIL, fitz, pytesseract  # PDF deps
+          import qdrant_client, dulwich  # RAG deps
+          print('✅ Multiple extras build successful')
+          "
+
+  validate-documentation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Check documentation exists
+        run: |
+          test -f docs/docker_agents_guide.md
+          echo "✅ Docker agents guide exists"
+
+      - name: Validate README updates
+        run: |
+          grep -q "parametric Dockerfile" README.md
+          grep -q "EXTRAS" README.md
+          echo "✅ README contains Docker agents documentation"
+
+      - name: Check agents directory structure
+        run: |
+          test -d agents
+          test -f agents/ingest_pdf.py
+          test -d agents/data
+          test -f agents/data/create_sample_invoice.py
+
+          echo "✅ Agents directory structure is correct"

@@ -19,8 +19,7 @@ class BlazeSwapHandler:
             self.tokens = {
                 "FLR": "native",
                 "WFLR": "0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d",  # Wrapped FLR on mainnet
-                "USDC.E": "0xFbDa5F676cB37624f28265A144A48B0d6e87d3b6",  # USDC.e on Flare
-                "USDT": "0x0B38e83B86d491735fEaa0a791F65c2B99535396",  # USDT on Flare
+                "USDT": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",  # USDT on Flare
                 "WETH": "0x1502FA4be69d526124D453619276FacCab275d3D",  # WETH on Flare
                 "FLX": "0x22757fb83836e3F9F0F353126cACD3B1Dc82a387",  # FlareFox token
             }
@@ -29,7 +28,6 @@ class BlazeSwapHandler:
             self.token_decimals = {
                 "FLR": 18,
                 "WFLR": 18,
-                "USDC.E": 6,
                 "USDT": 6,
                 "WETH": 18,
                 "FLX": 18,
@@ -45,7 +43,6 @@ class BlazeSwapHandler:
                 "WC2FLR": "0xC67DCE33D7A8efA5FfEB961899C73fe01bCe9273",  # Wrapped C2FLR
                 "FLX": "0x22757fb83836e3F9F0F353126cACD3B1Dc82a387",  # FlareFox token
                 "sFLR": "0x12e605bc104e93B45e1aD99F9e555f659051c2BB",  # Staked FLR
-                "USDC.E": "0x0158223696a583e74FE34870f784e1bFCa759C40",  # Test USDC.e
             }
             self.wrapped_native_symbol = "WC2FLR"
             # Token decimals
@@ -54,7 +51,6 @@ class BlazeSwapHandler:
                 "WC2FLR": 18,
                 "FLX": 18,
                 "sFLR": 18,
-                "USDC.E": 6,
             }
 
         # Convert contract addresses to checksum addresses
@@ -331,7 +327,7 @@ class BlazeSwapHandler:
         
         Args:
             token_a: First token symbol (e.g., 'FLR', 'WC2FLR')
-            token_b: Second token symbol (e.g., 'FLX', 'USDC.E')
+            token_b: Second token symbol (e.g., 'FLX', 'WC2FLR')
             
         Returns:
             bool: True if pool exists, False otherwise
@@ -664,7 +660,7 @@ class BlazeSwapHandler:
         Prepare a transaction to add liquidity with native FLR and a token.
 
         Args:
-            token: The token symbol (e.g., 'USDC.E')
+            token: The token symbol (e.g., 'WC2FLR')
             amount_token: Amount of token to add
             amount_flr: Amount of FLR to add
             wallet_address: User's wallet address
@@ -684,11 +680,8 @@ class BlazeSwapHandler:
             amount_flr_wei = self.w3.to_wei(amount_flr, "ether")
 
             # For tokens: Convert based on decimals
-            if token.upper() == "USDC.E":
-                # USDC.E uses 6 decimals
-                amount_token_wei = int(amount_token * (10**6))
-            else:
-                amount_token_wei = int(amount_token * (10**token_decimals))
+            # For tokens: Convert based on decimals
+            amount_token_wei = int(amount_token * (10**token_decimals))
 
             # 4. Calculate minimum amounts (using 0.5% slippage)
             slippage = 0.005  # 0.5%
@@ -775,8 +768,7 @@ class BlazeSwapHandler:
                 "token": token,
                 "amount_token": amount_token,
                 "amount_flr": amount_flr,
-                "amount_token_min": amount_token_min
-                / (10 ** (6 if token.upper() == "USDC.E" else token_decimals)),
+                "amount_token_min": amount_token_min / (10 ** token_decimals),
                 "amount_flr_min": self.w3.from_wei(amount_flr_min, "ether"),
                 "needs_approval": needs_approval,
             }
@@ -818,16 +810,8 @@ class BlazeSwapHandler:
             token_b_decimals = self.token_decimals.get(token_b.upper(), 18)
 
             # 3. Convert amounts to contract units (wei/smallest unit)
-            # Handle USDC.E special case (6 decimals)
-            if token_a.upper() == "USDC.E":
-                amount_a_wei = int(amount_a * (10**6))
-            else:
-                amount_a_wei = int(amount_a * (10**token_a_decimals))
-
-            if token_b.upper() == "USDC.E":
-                amount_b_wei = int(amount_b * (10**6))
-            else:
-                amount_b_wei = int(amount_b * (10**token_b_decimals))
+            amount_a_wei = int(amount_a * (10**token_a_decimals))
+            amount_b_wei = int(amount_b * (10**token_b_decimals))
 
             # 4. Calculate minimum amounts (using 0.5% slippage)
             slippage = 0.005  # 0.5%
@@ -909,14 +893,14 @@ class BlazeSwapHandler:
             router = self.w3.eth.contract(address=router_address, abi=self.router_abi)
 
             add_liquidity_tx = router.functions.addLiquidity(
-                token_a_address,  # tokenA (FLX)
-                token_b_address,  # tokenB (USDC.E)
+                token_a_address,  # tokenA
+                token_b_address,  # tokenB
                 amount_a_wei,  # amountADesired
                 amount_b_wei,  # amountBDesired
-                int(amount_a_wei * 0.998),  # amountAMin (0.2% slippage for FLX)
-                0,  # amountBMin (0 for USDC.E as per successful tx)
-                300,  # feeBipsA (300 for FLX)
-                0,  # feeBipsB (0 for USDC.E)
+                int(amount_a_wei * 0.998),  # amountAMin
+                0,  # amountBMin
+                300,  # feeBipsA
+                0,  # feeBipsB
                 wallet_address,  # to
                 int(time.time() + 86400),  # deadline (24 hours as per successful tx)
             ).build_transaction(
@@ -949,10 +933,8 @@ class BlazeSwapHandler:
                 "token_b": token_b,
                 "amount_a": amount_a,
                 "amount_b": amount_b,
-                "amount_a_min": amount_a_min
-                / (10 ** (6 if token_a.upper() == "USDC.E" else token_a_decimals)),
-                "amount_b_min": amount_b_min
-                / (10 ** (6 if token_b.upper() == "USDC.E" else token_b_decimals)),
+                "amount_a_min": amount_a_min / (10**token_a_decimals),
+                "amount_b_min": amount_b_min / (10**token_b_decimals),
                 "needs_approval_a": needs_approval_a,
                 "needs_approval_b": needs_approval_b,
             }

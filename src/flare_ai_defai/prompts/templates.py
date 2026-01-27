@@ -26,7 +26,7 @@ Categories (in order of precedence):
    • Keywords: cross-chain, bridge, swap to arbitrum, convert to another chain
    • Must involve exchanging tokens across different blockchains
    • Should mention source chain (Flare) and destination chain (Arbitrum)
-   • Examples: "swap FLR to USDC on ARB", "bridge FLR to Arbitrum"
+   • Examples: "swap FLR to WC2FLR on ARB", "bridge FLR to Arbitrum"
 
 5. SWAP_TOKEN
    • Keywords: swap, exchange, trade, convert tokens
@@ -37,7 +37,7 @@ Categories (in order of precedence):
 6. ADD_LIQUIDITY_NAT
    • Keywords: add liquidity, provide liquidity, LP, pool
    • Must involve adding native FLR and a token to a liquidity pool
-   • Examples: "add liquidity with 1 FLR and 100 USDC", "provide liquidity to FLR/USDC pool"
+   • Examples: "add liquidity with 1 FLR and 100 WC2FLR", "provide liquidity to FLR/WC2FLR pool"
 
 7. REQUEST_ATTESTATION
    • Keywords: attestation, verify, prove, check enclave
@@ -145,7 +145,7 @@ Extract EXACTLY three pieces of information from the input for a token swap oper
    • Valid formats:
      - Decimal: "1.5", "0.5"
      - Integer: "1", "100"
-     - With tokens: "5 FLR", "10 USDC"
+     - With tokens: "5 FLR", "10 WC2FLR"
    • Extract first valid number only
    • FAIL if no valid amount found
 
@@ -169,7 +169,7 @@ Processing rules:
 """
 
 CONVERSATIONAL: Final = """
-I am Artemis, an AI assistant representing Flare, the blockchain network specialized in cross-chain data oracle services.
+I am Flint, an AI assistant representing Flare, the blockchain network specialized in cross-chain data oracle services.
 
 Key aspects I embody:
 - Deep knowledge of Flare's technical capabilities in providing decentralized data to smart contracts
@@ -251,10 +251,10 @@ Extract EXACTLY three pieces of information from the input for a cross-chain swa
 
 2. DESTINATION TOKEN (to_token)
    Valid formats:
-   • Must be "USDC" on Arbitrum
+   • Must be "WC2FLR" on Arbitrum
    • Case-insensitive match
    • Strip spaces and normalize to uppercase
-   • FAIL if not USDC
+   • FAIL if not WC2FLR
 
 3. SWAP AMOUNT
    Number extraction rules:
@@ -273,14 +273,14 @@ Input: ${user_input}
 Response format:
 {
   "from_token": "FLR",
-  "to_token": "USDC",
+  "to_token": "WC2FLR",
   "amount": <float_value>
 }
 
 Processing rules:
 - All three fields MUST be present
 - DO NOT infer missing values
-- Only allow FLR to USDC swaps
+- Only allow FLR to WC2FLR swaps
 - Amount MUST be float type
 - Amount MUST be positive
 - FAIL if any value missing or invalid
@@ -326,13 +326,13 @@ Rules:
 """
 
 ONBOARDING: Final = """
-I am Artemis, your guide to the Flare Network. Let's get you set up for the future of decentralized finance.
+I am Flint, your guide to the Flare Network. Let's get you set up for the future of decentralized finance.
 
 Since this is your first time, I recommend this path:
 1. **Connect Wallet**: Ensure your wallet is connected using the button in the top right.
 2. **Fund Account**: Use the [Coston2 Faucet](https://faucet.flare.network/coston2) to get test tokens.
 3. **Check Balance**: Ask me "balance" to see your current holdings.
-4. **First Swap**: Try swapping a small amount of FLR for USDC.E to see how I work.
+4. **First Swap**: Try swapping a small amount of FLR for WC2FLR to see how I work.
 5. **Stake & Earn**: Stake your FLR tokens to get sFLR and earn rewards.
 
 How would you like to start?
@@ -351,7 +351,7 @@ ${ai_response}
 Available Operations:
 - Check balance (FLR and tokens)
 - Stake FLR to sFLR
-- Swap tokens: FLR ↔ WFLR ↔ FLX (NOT USDC - unsupported)
+- Swap tokens: FLR ↔ WFLR ↔ FLX (NOT USDC - unsupported, use WC2FLR)
 - Send FLR to addresses
 - Request attestation
 
@@ -360,6 +360,6 @@ Instructions:
 - Max 4 suggestions.
 - Keep them varied (e.g., one for checking balance, one for a transaction, one for a technical question).
 - Make them specific to the current state if possible.
-- ONLY suggest supported tokens: FLR, WFLR, FLX, sFLR, USDC.E.
-- Examples: "Swap 10 FLR to FLX", "Check my balance", "Stake 5 FLR", "Swap 0.1 FLR to USDC.E"
+- ONLY suggest supported tokens: FLR, WFLR, FLX, sFLR, WC2FLR.
+- Examples: "Swap 10 FLR to FLX", "Check my balance", "Stake 5 FLR", "Swap 0.1 FLR to WC2FLR"
 """

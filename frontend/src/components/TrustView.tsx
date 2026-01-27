@@ -209,6 +209,17 @@ const TrustView: React.FC = () => {
                                                     </div>
                                                 </div>
                                             )}
+
+                                            <div className="border-t border-neutral-800/50 pt-3 space-y-2">
+                                                <span className="text-[10px] text-neutral-500 uppercase tracking-tighter flex items-center gap-1">
+                                                    Technical Audit Data (Full JSON) <Shield className="w-2 h-2" />
+                                                </span>
+                                                <div className="max-h-[200px] overflow-y-auto bg-black/40 p-2 rounded border border-white/5">
+                                                    <pre className="text-[10px] text-neutral-400 font-mono whitespace-pre-wrap break-all">
+                                                        {JSON.stringify(ipfsData, null, 2)}
+                                                    </pre>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}

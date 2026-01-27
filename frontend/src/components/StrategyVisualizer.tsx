@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { StrategyPieChart } from './StrategyPieChart';
-import { Strategy } from '../types/strategy';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+import React, { useEffect, useState } from 'react';
+import { Strategy } from '../types/strategy';
+import { StrategyPieChart } from './StrategyPieChart';
 
 const STRATEGIES: Record<string, Strategy> = {
   conservative: {
@@ -21,7 +21,7 @@ const STRATEGIES: Record<string, Strategy> = {
         type: 'lp',
         description: 'Provide liquidity in stablecoin pairs',
         percentage: 10,
-        command: 'pool add {amount} WFLR USDC.E'
+        command: 'pool add {amount} WFLR WC2FLR'
       },
       {
         type: 'hold',
@@ -57,7 +57,7 @@ const STRATEGIES: Record<string, Strategy> = {
         type: 'lp',
         description: 'Provide liquidity in mixed pairs',
         percentage: 20,
-        command: 'pool add {amount} WFLR USDC.e'
+        command: 'pool add {amount} WFLR WC2FLR'
       },
       {
         type: 'hold',
@@ -86,7 +86,7 @@ const STRATEGIES: Record<string, Strategy> = {
         type: 'lp',
         description: 'High-yield liquidity provision',
         percentage: 30,
-        command: 'pool add {amount} FLX USDC.e'
+        command: 'pool add {amount} FLX WC2FLR'
       },
       {
         type: 'hold',
@@ -146,13 +146,13 @@ export const StrategyVisualizer: React.FC<StrategyVisualizerProps> = ({
     try {
       const stepAmount = calculateStepAmount(step.percentage);
       const formattedCommand = step.command.replace('{amount}', stepAmount);
-      
+
       // Special handling for hold strategy type
       if (step.type === 'hold') {
         setCurrentStep(currentStep + 1); // Auto-advance for hold strategy
         return; // Skip command execution for pure hold strategy
       }
-      
+
       onExecuteCommand?.(formattedCommand);
     } catch (error) {
       console.error('Error executing step:', error);

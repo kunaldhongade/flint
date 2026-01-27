@@ -132,6 +132,10 @@ class ChatRouter:
         # Initialize BlazeSwap handler with provider URL from environment
         self.blazeswap = BlazeSwapHandler(web3_provider_url)
         self.interceptor = DecisionInterceptor()
+        
+        # Mapping from session_id to stateful decision_id
+        self.session_decisions: dict[str, Any] = {}
+        
         self._setup_routes()
 
     def _setup_routes(self) -> None:
@@ -150,10 +154,11 @@ class ChatRouter:
                 data = await request.form()
                 message_text = data.get("message", "")
                 wallet_address = data.get("walletAddress")
+                session_id = data.get("sessionId")
                 image = data.get("image")  # This will be an UploadFile if provided
                 
                 # Extract selected models
-                selected_models_raw = data.get("selected_models")
+                selected_models_raw = data.get("selectedModels")
                 selected_models = []
                 if selected_models_raw:
                     try:
@@ -163,6 +168,10 @@ class ChatRouter:
 
                 if not message_text:
                     return {"response": "Message cannot be empty"}
+
+                # Initialize action source and response
+                ai_action = "CONVERSATIONAL"
+                handler_response = {}
 
                 # --- EXPLICIT MODEL EXECUTION BRANCH ---
                 if selected_models and isinstance(selected_models, list) and len(selected_models) > 0:
@@ -182,20 +191,18 @@ class ChatRouter:
                         })
                     
                     # We pick one "main" response to show in the bubble, or aggregate them.
-                    # For now, let's just show the first one or a summary.
                     main_response = f"Executed {len(model_results)} models: {', '.join(selected_models)}.\n\nSee detailed agent breakdown below."
                     if len(model_results) == 1:
                         main_response = model_results[0]["response_text"]
 
-                    return {
+                    handler_response = {
                         "response": main_response,
                         "agent_votes": agent_votes
                     }
                 # ----------------------------------------
 
                 # If an image/file is provided, handle it
-                if image is not None:
-
+                elif image is not None:
                     file_data = await image.read()
                     mime_type = image.content_type or "application/octet-stream"
 
@@ -249,75 +256,75 @@ class ChatRouter:
                             )
 
                     # Default file handling
-                    response = await self.ai.send_message_with_attachment(
-                        message_text, file_data, mime_type
-                    )
-                    return {"response": response.text}
+                    else:
+                        response = await self.ai.send_message_with_attachment(
+                            message_text, file_data, mime_type, session_id=session_id
+                        )
+                        handler_response = {"response": response.text}
 
-                # Update the blockchain provider with the wallet address if provided
-                if wallet_address:
-                    self.blockchain.address = wallet_address
-
-                # Initialize action source
-                ai_action = "CONVERSATIONAL"
-                handler_response = {}
-
-                # Check for direct commands first
-                words = message_text.lower().split()
-                if words:
-                    command = words[0]
-                    # Map commands to actions
-                    command_map = {
-                        "swap": "SWAP",
-                        "balance": "CHECK_BALANCE",
-                        "check": "CHECK_BALANCE", 
-                        "send": "SEND",
-                        "stake": "STAKE",
-                        "pool": "POOL",
-                        "risk": "RISK",
-                        "attest": "ATTEST",
-                        "help": "HELP"
-                    }
-
-                    if command == "perp":
-                         handler_response = {
-                            "response": "Perpetuals trading is not supported. Please use BlazeSwap for token swaps."
-                        }
-                    elif command == "universal":
-                         handler_response = {
-                            "response": "Universal router swaps have been removed. Please use 'swap' command for BlazeSwap trading."
-                        }
-                    elif command in command_map:
-                        ai_action = command_map[command]
-                        # Dispatch to strict handler (we recreate the routing logic here slightly for interception)
-                        if command == "swap":
-                            handler_response = await self.handle_swap_token(message_text)
-                        elif command in ["balance", "check"]:
-                            handler_response = await self.handle_balance_check(message_text)
-                        elif command == "send":
-                            handler_response = await self.handle_send_token(message_text)
-                        elif command == "stake":
-                            handler_response = await self.handle_stake_command(message_text)
-                        elif command == "pool":
-                            handler_response = await self.handle_add_liquidity(message_text)
-                        elif command == "risk":
-                            handler_response = await self.handle_risk_assessment(message_text)
-                        elif command == "attest":
-                            handler_response = await self.handle_attestation(message_text)
-                        elif command == "help":
-                            handler_response = await self.handle_help_command()
-                
-                # If no direct command served, use semantic routing
+                # --- STANDARD COMMANDS / SEMANTIC ROUTING ---
                 if not handler_response:
-                    prompt, mime_type, schema = self.prompts.get_formatted_prompt(
-                        "semantic_router", user_input=message_text
-                    )
-                    route_response = self.ai.generate(
-                        prompt=prompt, response_mime_type=mime_type, response_schema=schema
-                    )
-                    route = SemanticRouterResponse(route_response.text.strip())
-                    ai_action = route.value
-                    handler_response = await self.route_message(route, message_text)
+                    # Update the blockchain provider with the wallet address if provided
+                    if wallet_address:
+                        self.blockchain.address = wallet_address
+
+                    # Check for direct commands first
+                    words = message_text.lower().split()
+                    if words:
+                        command = words[0]
+                        # Map commands to actions
+                        command_map = {
+                            "swap": "SWAP",
+                            "balance": "CHECK_BALANCE",
+                            "check": "CHECK_BALANCE", 
+                            "send": "SEND",
+                            "stake": "STAKE",
+                            "pool": "POOL",
+                            "risk": "RISK",
+                            "attest": "ATTEST",
+                            "help": "HELP"
+                        }
+
+                        if command == "perp":
+                             handler_response = {
+                                "response": "Perpetuals trading is not supported. Please use BlazeSwap for token swaps."
+                            }
+                        elif command == "universal":
+                             handler_response = {
+                                "response": "Universal router swaps have been removed. Please use 'swap' command for BlazeSwap trading."
+                            }
+                        elif command in command_map:
+                            ai_action = command_map[command]
+                            # Dispatch to strict handler
+                            if command == "swap":
+                                handler_response = await self.handle_swap_token(message_text)
+                            elif command in ["balance", "check"]:
+                                handler_response = await self.handle_balance_check(message_text)
+                            elif command == "send":
+                                handler_response = await self.handle_send_token(message_text)
+                            elif command == "stake":
+                                handler_response = await self.handle_stake_command(message_text)
+                            elif command == "pool":
+                                handler_response = await self.handle_add_liquidity(message_text)
+                            elif command == "risk":
+                                handler_response = await self.handle_risk_assessment(message_text)
+                            elif command == "attest":
+                                handler_response = await self.handle_attestation(message_text)
+                            elif command == "help":
+                                handler_response = await self.handle_help_command()
+                    
+                    # If no direct command served, use semantic routing
+                    if not handler_response:
+                        prompt, mime_type, schema = self.prompts.get_formatted_prompt(
+                            "semantic_router", user_input=message_text
+                        )
+                        route_response = self.ai.generate(
+                            prompt=prompt, response_mime_type=mime_type, response_schema=schema,
+                            session_id=session_id
+                        )
+                        route = SemanticRouterResponse(route_response.text.strip())
+                        ai_action = route.value
+                        handler_response = await self.route_message(route, message_text, session_id=session_id)
 
                 # --- INTERCEPTION POINT ---
                 if "response" in handler_response:
@@ -328,11 +335,19 @@ class ChatRouter:
                              # Heuristic: Default to FLR context if relevant action, or look for token
                              target_token = "FLR"
                              # Simple check for other tokens
-                             for t in ["USDC", "WETH", "BTC", "USDT"]:
+                             for t in ["WC2FLR", "WETH", "BTC", "USDT"]:
                                  if t in message_text.upper():
                                      target_token = t
                                      break
                              ftso_data = await get_ftso_context(self.blockchain, target_token)
+
+                        # Maintain stable decision_id per session
+                        stable_decision_id = None
+                        if session_id:
+                            if session_id not in self.session_decisions:
+                                from uuid import uuid4
+                                self.session_decisions[session_id] = uuid4()
+                            stable_decision_id = self.session_decisions[session_id]
 
                         decision_packet = self.interceptor.intercept(
                             wallet_address=wallet_address or "0x0000000000000000000000000000000000000000",
@@ -340,8 +355,10 @@ class ChatRouter:
                             user_input=message_text,
                             ai_response_text=handler_response["response"],
                             transaction_data=handler_response.get("transaction"),
+                            model_id=selected_models[0] if selected_models else "gemini-1.5-flash",
                             ftso_feed_id=ftso_data.get("ftso_feed_id"),
-                            ftso_round_id=ftso_data.get("ftso_round_id")
+                            ftso_round_id=ftso_data.get("ftso_round_id"),
+                            decision_id=stable_decision_id
                         )
                         # Attach packet to response
                         handler_response["decision_packet"] = decision_packet.model_dump()
@@ -474,7 +491,7 @@ class ChatRouter:
             return []
 
     async def route_message(
-        self, route: SemanticRouterResponse, message: str
+        self, route: SemanticRouterResponse, message: str, session_id: str | None = None
     ) -> dict[str, str]:
         """
         Route a message to the appropriate handler based on the semantic route.
@@ -482,6 +499,7 @@ class ChatRouter:
         Args:
             route: Semantic route determined by the AI
             message: Message to process
+            session_id: Optional session ID for context memory
 
         Returns:
             dict[str, str]: Response from the appropriate handler
@@ -529,7 +547,7 @@ class ChatRouter:
             }
 
         # Convert regular swap commands to the right format if they match the pattern
-        # Example: "swap 1 wflr to usdc.e"
+        # Example: "swap 1 wflr to wc2flr"
         swap_pattern = re.compile(
             r"swap\s+(\d+\.?\d*)\s+(\w+\.?\w*)\s+to\s+(\w+\.?\w*)", re.IGNORECASE
         )
@@ -541,6 +559,9 @@ class ChatRouter:
         if not handler:
             return {"response": "Unsupported route"}
 
+        if route == SemanticRouterResponse.CONVERSATIONAL:
+            return await self.handle_conversation(message, session_id=session_id)
+        
         return await handler(message)
 
     async def handle_balance_check(self, message: str) -> dict[str, str]:
@@ -649,10 +670,10 @@ class ChatRouter:
             if len(parts) < 5:
                 return {
                     "response": """Usage: swap <amount> <token_in> to <token_out>
-Example: swap 0.1 FLR to USDC.E
+Example: swap 0.1 FLR to WC2FLR
 Example: swap 0.1 FLR to FLX
 
-Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
+Supported tokens: FLR, WFLR, WC2FLR, USDT, WETH, FLX"""
                 }
 
             amount = float(parts[1])
@@ -688,9 +709,6 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
                 swap_data["min_amount_out"], "ether"
             )
 
-            # For USDC.E which has 6 decimals, we need to adjust the display
-            if token_out.upper() == "USDC.E":
-                min_amount = swap_data["min_amount_out"] / 10**6
 
             return {
                 "response": f"Ready to swap {amount} {token_in} for {token_out}.\n\n"
@@ -740,7 +758,7 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
                 prompt=prompt, response_mime_type=mime_type, response_schema=schema
             )
 
-            # The schema ensures we get FLR to USDC with just the amount
+            # The schema ensures we get FLR to WC2FLR with just the amount
             swap_json = json.loads(swap_response.text)
 
             # Validate the parsed data
@@ -768,14 +786,14 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
         self.attestation.attestation_requested = True
         return {"response": request_attestation_response.text}
 
-    async def handle_conversation(self, message: str) -> dict[str, str]:
+    async def handle_conversation(self, message: str, session_id: str | None = None) -> dict[str, str]:
         """
         Handle general conversation messages.
         """
         prompt, _, _ = self.prompts.get_formatted_prompt(
             "conversational", user_input=message, context="", image_data=""
         )
-        response = self.ai.send_message(prompt)
+        response = self.ai.send_message(prompt, session_id=session_id)
         return {"response": response.text}
 
     async def handle_onboarding(self, _: str) -> dict[str, str]:
@@ -803,9 +821,9 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
             
             # Generate a strategy based on the score
             if score <= 3:
-                strategy = "Conservative: Focus on stablecoins like USDC.E and USDT. Consider providing liquidity to stable pairs or staking FLR to sFLR for steady rewards with lower volatility."
+                strategy = "Conservative: Focus on stablecoins like WC2FLR and USDT. Consider providing liquidity to stable pairs or staking FLR to sFLR for steady rewards with lower volatility."
             elif score <= 7:
-                strategy = "Moderate: A balanced mix of staking FLR and providing liquidity to major pairs like FLR/USDC.E or FLR/WETH. This provides a good balance between rewards and market exposure."
+                strategy = "Moderate: A balanced mix of staking FLR and providing liquidity to major pairs like FLR/WC2FLR or FLR/WETH. This provides a good balance between rewards and market exposure."
             else:
                 strategy = "Aggressive: Focus on high-yield pairs like FLR/FLX or speculative assets. Be prepared for higher volatility and potential impermanent loss in exchange for higher reward potential."
             
@@ -863,14 +881,14 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
                     return await self.handle_add_liquidity(message)
                 return {
                     "response": """Usage: pool add <amount> <token_a> <token_b>
-Example: pool add 1 WFLR USDC.E
-Example: pool add 100 FLX USDC.E
+Example: pool add 1 WFLR WC2FLR
+Example: pool add 100 FLX WC2FLR
 
 Or for native FLR:
 pool add <amount_flr> FLR <token>
-Example: pool add 1 FLR USDC.E
+Example: pool add 1 FLR WC2FLR
 
-Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
+Supported tokens: FLR, WFLR, WC2FLR, USDT, WETH, FLX"""
                 }
             if command == "risk":
                 return await self.handle_risk_assessment(message)
@@ -936,16 +954,16 @@ Supported tokens: FLR, WFLR, USDC.E, USDT, WETH, FLX"""
 
 **Trading Operations:**
 - `swap <amount> <token_in> to <token_out>` - Swap tokens on BlazeSwap
-  Example: swap 0.1 WFLR to USDC.E
+  Example: swap 0.1 WFLR to WC2FLR
   Example: swap 0.1 FLR to FLX
   Example: swap 0.5 FLX to FLR
 
 **Liquidity Operations:**
 - `pool add <amount> <token_a> <token_b>` - Add liquidity with two tokens
-  Example: pool add 1 WFLR USDC.E
-  Example: pool add 100 FLX USDC.E
+  Example: pool add 1 WFLR WC2FLR
+  Example: pool add 100 FLX WC2FLR
 - `pool add <amount_flr> FLR <token>` - Add liquidity with native FLR
-  Example: pool add 1 FLR USDC.E
+  Example: pool add 1 FLR WC2FLR
   Example: pool add 0.5 FLR FLX
 
 **Staking Operations:**
@@ -972,15 +990,15 @@ You can also ask me general questions about DeFi on Flare Network!
         try:
             # Parse parameters from message
             # New format: pool add <amount_flr> FLR <token>
-            # Example: pool add 1 FLR USDC.E
+            # Example: pool add 1 FLR WC2FLR
             parts = message.split()
             if len(parts) < 5:
                 return {
                     "response": """Usage: pool add <amount_flr> FLR <token>
-Example: pool add 0.1 FLR USDC.E
+Example: pool add 0.1 FLR WC2FLR
 Example: pool add 0.5 FLR FLX
 
-Supported tokens: USDC.E, USDT, WETH, FLX"""
+Supported tokens: WC2FLR, USDT, WETH, FLX"""
                 }
 
             amount_flr = float(parts[2])
@@ -995,10 +1013,10 @@ Supported tokens: USDC.E, USDT, WETH, FLX"""
 
             # Get token pair price to calculate the equivalent amount of token
             # This is a simplified approach - in a real implementation, you would query the pool for the current ratio
-            # For now, we'll use a hardcoded ratio for FLR/USDC.E and default to 1:1 for other pairs
+            # For now, we'll use a hardcoded ratio for FLR/WC2FLR and default to 1:1 for other pairs
             token_ratios = {
-                "FLR_USDC.E": 0.06,  # 1 FLR = 0.06 USDC.E (adjusted to realistic value)
-                "USDC.E_FLR": 16.67,  # 1 USDC.E = 16.67 FLR
+                "FLR_WC2FLR": 1.0,  # 1 FLR = 1 WC2FLR (1:1 wrap)
+                "WC2FLR_FLR": 1.0,  # 1 WC2FLR = 1 FLR
                 "FLR_FLX": 0.135,  # Approximate ratio (adjusted)
                 "FLX_FLR": 7.4,  # Approximate ratio (adjusted)
             }
@@ -1023,8 +1041,8 @@ Supported tokens: USDC.E, USDT, WETH, FLX"""
                 print(f"Debug - Using default 1:1 ratio for {pair_key}")
 
             # Round to appropriate decimal places based on token
-            if token.upper() == "USDC.E":
-                amount_token = round(amount_token, 6)  # USDC.E has 6 decimals
+            if token.upper() == "WC2FLR":
+                amount_token = round(amount_token, 18)  # WC2FLR has 18 decimals
             else:
                 amount_token = round(
                     amount_token, 8
@@ -1110,15 +1128,15 @@ Supported tokens: USDC.E, USDT, WETH, FLX"""
         try:
             # Parse parameters from message
             # New format: pool add <amount> <token_a> <token_b>
-            # Example: pool add 1 WFLR USDC.E
+            # Example: pool add 1 WFLR WC2FLR
             parts = message.split()
             if len(parts) < 5:
                 return {
                     "response": """Usage: pool add <amount> <token_a> <token_b>
-Example: pool add 1 WFLR USDC.E
-Example: pool add 100 FLX USDC.E
+Example: pool add 1 WFLR WC2FLR
+Example: pool add 100 FLX WC2FLR
 
-Supported tokens: WFLR, USDC.E, USDT, WETH, FLX"""
+Supported tokens: WFLR, WC2FLR, USDT, WETH, FLX"""
                 }
 
             amount_a = float(parts[2])
@@ -1159,10 +1177,10 @@ Supported tokens: WFLR, USDC.E, USDT, WETH, FLX"""
 
             # Get token pair price to calculate the equivalent amount of token B
             # This is a simplified approach - in a real implementation, you would query the pool for the current ratio
-            # For now, we'll use a hardcoded ratio for WFLR/USDC.E and default to 1:1 for other pairs
+            # For now, we'll use a hardcoded ratio for WFLR/WC2FLR and default to 1:1 for other pairs
             token_ratios = {
-                "WFLR_USDC.E": 0.06,  # 1 WFLR = 0.06 USDC.E (adjusted to realistic value)
-                "USDC.E_WFLR": 16.67,  # 1 USDC.E = 16.67 WFLR
+                "WFLR_WC2FLR": 1.0,  # 1 WFLR = 1 WC2FLR (1:1 wrap)
+                "WC2FLR_WFLR": 1.0,  # 1 WC2FLR = 1 WFLR
                 "WFLR_FLX": 0.135,  # Approximate ratio (adjusted)
                 "FLX_WFLR": 7.4,  # Approximate ratio (adjusted)
             }
@@ -1187,8 +1205,8 @@ Supported tokens: WFLR, USDC.E, USDT, WETH, FLX"""
                 print(f"Debug - Using default 1:1 ratio for {pair_key}")
 
             # Round to appropriate decimal places based on token
-            if token_b.upper() == "USDC.E":
-                amount_b = round(amount_b, 6)  # USDC.E has 6 decimals
+            if token_b.upper() == "WC2FLR":
+                amount_b = round(amount_b, 18)  # WC2FLR has 18 decimals
             else:
                 amount_b = round(
                     amount_b, 8

@@ -94,7 +94,7 @@ class PromptService:
             service = PromptService()
             try:
                 prompt, mime_type, schema = service.get_formatted_prompt(
-                    "token_swap", from_token="ETH", to_token="USDC", amount=1.5
+                    "token_swap", from_token="FLR", to_token="WC2FLR", amount=1.5
                 )
             except KeyError:
                 print("Prompt template not found")

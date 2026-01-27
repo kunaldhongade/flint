@@ -42,7 +42,7 @@ class BaseAIProvider(ABC):
         self.chat_history: list[Any] = []
 
     @abstractmethod
-    def reset(self) -> None:
+    def reset(self, session_id: str | None = None) -> None:
         """Reset the conversation history"""
 
     @abstractmethod
@@ -51,6 +51,7 @@ class BaseAIProvider(ABC):
         prompt: str,
         response_mime_type: str | None = None,
         response_schema: Any | None = None,
+        session_id: str | None = None,
     ) -> ModelResponse:
         """Generate a response without maintaining conversation context
 
@@ -59,17 +60,21 @@ class BaseAIProvider(ABC):
             response_mime_type: Expected response format
                 (e.g., "text/plain", "application/json")
             response_schema: Expected response structure schema
+            session_id: Optional session identifier for maintaining context
 
         Returns:
             ModelResponse containing the generated text and metadata
         """
 
     @abstractmethod
-    def send_message(self, msg: str) -> ModelResponse:
+    def send_message(
+        self, msg: str, session_id: str | None = None
+    ) -> ModelResponse:
         """Send a message in a conversational context
 
         Args:
             msg: Input message text
+            session_id: Optional session identifier for maintaining context
 
         Returns:
             ModelResponse containing the response text and metadata
@@ -77,7 +82,11 @@ class BaseAIProvider(ABC):
 
     @abstractmethod
     async def send_message_with_attachment(
-        self, msg: str, file_data: bytes, mime_type: str
+        self,
+        msg: str,
+        file_data: bytes,
+        mime_type: str,
+        session_id: str | None = None,
     ) -> ModelResponse:
         """Send a message with an attachment in a conversational context
 
@@ -85,6 +94,7 @@ class BaseAIProvider(ABC):
             msg: Input message text
             file_data: Binary file data
             mime_type: MIME type of the file (e.g. image/jpeg, application/pdf)
+            session_id: Optional session identifier for maintaining context
 
         Returns:
             ModelResponse containing the response text and metadata

@@ -31,7 +31,9 @@ def get_feed_id(symbol: str) -> Optional[str]:
     """
     symbol = symbol.upper()
     # Handle wrapped tokens or synonyms if needed
-    if symbol == "USDC.E":
+    if symbol in ["USDC.E", "WC2FLR"]:
+        if symbol == "WC2FLR":
+            return FTSO_FEED_IDS.get("FLR")
         symbol = "USDC"
     
     return FTSO_FEED_IDS.get(symbol)

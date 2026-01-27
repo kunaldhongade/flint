@@ -14,6 +14,8 @@ interface ChatInputProps {
     onPreviewRequest?: (file: File) => void;
     onVerify?: () => void;
     canVerify?: boolean;
+    value?: string;
+    onChange?: (value: string) => void;
 }
 
 const AVAILABLE_MODELS = [
@@ -25,8 +27,17 @@ const AVAILABLE_MODELS = [
     { id: 'gemini-3.5-ultra', name: 'Gemini 3.5 Ultra', maxSizeMB: 20 },
 ];
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, placeholder, selectedModels, onModelChange, onPreviewRequest, onVerify, canVerify }) => {
-    const [text, setText] = React.useState('');
+export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, placeholder, selectedModels, onModelChange, onPreviewRequest, onVerify, canVerify, value, onChange }) => {
+    const [localText, setLocalText] = React.useState('');
+
+    const text = value !== undefined ? value : localText;
+    const setText = (newText: string) => {
+        if (onChange) {
+            onChange(newText);
+        } else {
+            setLocalText(newText);
+        }
+    };
     const [file, setFile] = React.useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { showError } = useError();
@@ -195,8 +206,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, placeho
                             onClick={onVerify}
                             disabled={!canVerify || isLoading}
                             className={`rounded-xl h-9 px-3 flex items-center gap-2 transition-all duration-300 ${canVerify
-                                    ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20'
-                                    : 'bg-neutral-800/30 text-neutral-600 border border-transparent cursor-not-allowed opacity-40'
+                                ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20'
+                                : 'bg-neutral-800/30 text-neutral-600 border border-transparent cursor-not-allowed opacity-40'
                                 }`}
                             title="Verify decision"
                         >
@@ -209,8 +220,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, placeho
                         type="submit"
                         disabled={(!text.trim() && !file) || isLoading}
                         className={`rounded-xl h-9 w-9 p-0 transition-all duration-300 ${text.trim() || file
-                                ? 'bg-[#FA8112] text-white hover:bg-[#E06C00] shadow-lg shadow-[#FA8112]/20'
-                                : 'bg-neutral-800/50 text-neutral-600'
+                            ? 'bg-[#FA8112] text-white hover:bg-[#E06C00] shadow-lg shadow-[#FA8112]/20'
+                            : 'bg-neutral-800/50 text-neutral-600'
                             }`}
                     >
                         <Send className="w-4 h-4" />

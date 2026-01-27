@@ -33,6 +33,7 @@ interface TrustProof {
   txHash?: string;
   ipfsCid?: string;
   timestamp: number;
+  modelId?: string;
 }
 
 interface Message {
@@ -88,6 +89,7 @@ const ChatInterface: React.FC = () => {
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationResult, setVerificationResult] = useState<{ decisionId?: string; txHash?: string; ipfsCid?: string }>({});
   const { openModelSelector, openFilePreview } = useGlobalUI();
+  const [inputText, setInputText] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -317,7 +319,9 @@ const ChatInterface: React.FC = () => {
       const formData = new FormData();
       formData.append("message", text);
       formData.append("walletAddress", address || "");
+      if (sessionId) formData.append("sessionId", sessionId);
       if (file) formData.append("image", file);
+      if (selectedModels) formData.append("selectedModels", JSON.stringify(selectedModels));
 
       const response = await fetch(BACKEND_ROUTE, {
         method: "POST",
@@ -356,7 +360,8 @@ const ChatInterface: React.FC = () => {
       const trustProof: TrustProof | undefined = data.decision_packet ? {
         decisionId: data.decision_packet.decision_id,
         decisionHash: data.decision_packet.decision_hash,
-        timestamp: data.decision_packet.timestamp * 1000
+        timestamp: data.decision_packet.timestamp * 1000,
+        modelId: data.decision_packet.model_id
       } : undefined;
 
       updateLastMessage({
@@ -407,7 +412,12 @@ const ChatInterface: React.FC = () => {
 
       const trailData = {
         decision_id: pendingDecision.packet.decision_id,
-        user_input: pendingDecision.packet.input_summary,
+        session_id: sessionId,
+        full_conversation: messages.map(m => ({
+          role: m.type === 'user' ? 'user' : 'AI',
+          text: m.text,
+          ...(m.agentVotes ? { agent_votes: m.agentVotes } : {})
+        })),
         ai_response: lastBotMsg?.text,
         agent_votes: lastBotMsg?.agentVotes,
         execution_tx_hashes: executionTxHashes,
@@ -462,7 +472,8 @@ const ChatInterface: React.FC = () => {
               decisionHash: pendingDecision.packet.decision_hash,
               ipfsCid: confirmData.ipfs_cid,
               timestamp: pendingDecision.packet.timestamp * 1000,
-              txHash: hash
+              txHash: hash,
+              modelId: pendingDecision.packet.model_id
             };
           }
           return newMsgs;
@@ -488,7 +499,7 @@ const ChatInterface: React.FC = () => {
   };
 
   const handleSuggestionClick = (text: string) => {
-    handleSend(text, null);
+    setInputText(text);
   };
 
 
@@ -662,6 +673,7 @@ const ChatInterface: React.FC = () => {
         <ChatSuggestions
           isVisible={!isLoading}
           onSuggestionClick={handleSuggestionClick}
+          suggestions={messages[messages.length - 1]?.suggestions}
         />
         <ChatInput
           onSend={handleSend}
@@ -672,6 +684,8 @@ const ChatInterface: React.FC = () => {
           onModelChange={handleOpenModelSelector}
           onPreviewRequest={openFilePreview}
           placeholder={!selectedModels ? "Select AI models to start..." : undefined}
+          value={inputText}
+          onChange={setInputText}
         />
       </div>
 
